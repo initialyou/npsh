@@ -149,4 +149,4 @@ After installation, the system creates `np` shortcuts that can be used as follow
 
 ## Feedback
 
-If you encounter any issues, please submit feedback at [GitHub Issues](https://github.com/NodePassProject/scripts/issues).
+If you encounter any issues, please submit feedback at [GitHub Issues](https://github.com/NodePassProject/npsh/issues).

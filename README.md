@@ -149,4 +149,4 @@ bash <(curl -sSL https://run.nodepass.eu/np.sh) \
 
 ## 问题反馈
 
-如遇到问题，请前往 [GitHub Issues](https://github.com/NodePassProject/scripts/issues) 提交反馈。
+如遇到问题，请前往 [GitHub Issues](https://github.com/NodePassProject/npsh/issues) 提交反馈。
