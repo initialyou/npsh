@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # 当前脚本版本号
-SCRIPT_VERSION='0.0.1'
+SCRIPT_VERSION='0.0.2'
 
 # 环境变量用于在Debian或Ubuntu操作系统中设置非交互式（noninteractive）安装模式
 export DEBIAN_FRONTEND=noninteractive
@@ -19,8 +19,8 @@ mkdir -p $TEMP_DIR
 
 E[0]="\n Language:\n 1. 简体中文\n 2. English"
 C[0]="${E[0]}"
-E[1]="Hello NodePass!"
-C[1]="欢迎使用 NodePass！"
+E[1]="The nodepass binary has been added to system path, enabling global access and direct execution."
+C[1]="nodepass 二进制文件已添加至系统路径，支持全局直接调用"
 E[2]="The script must be run as root, you can enter sudo -i and then download and run again. Feedback: [https://github.com/NodePassProject/npsh/issues]"
 C[2]="必须以 root 方式运行脚本，可以输入 sudo -i 后重新下载运行，问题反馈:[https://github.com/NodePassProject/npsh/issues]"
 E[3]="Unsupported architecture: \$(uname -m)"
@@ -61,7 +61,7 @@ E[20]="Failed to get latest version"
 C[20]="无法获取最新版本"
 E[21]="Running in container environment, skipping service creation and starting process directly"
 C[21]="在容器环境中运行，跳过服务创建，直接启动进程"
-E[22]="NodePass Script Usage / NodePass 脚本使用方法:\n np - Show menu / 显示菜单\n np -i - Install NodePass / 安装 NodePass\n np -u - Uninstall NodePass / 卸载 NodePass\n np -v - Upgrade NodePass / 升级 NodePass\n np -o - Toggle service status (start/stop) / 切换服务状态（开启/停止)\n np -k - Change NodePass API key / 更换 NodePass API key\n np -s - Show NodePass API info / 显示 NodePass API 信息\n np -h - Show help information / 显示帮助信息"
+E[22]="NodePass Script Usage / NodePass 脚本使用方法:\n np - Show menu / 显示菜单\n np -i - Install NodePass / 安装 NodePass\n np -u - Uninstall NodePass / 卸载 NodePass\n np -v - Upgrade NodePass / 升级 NodePass\n np -o - Toggle service status (start/stop) / 切换服务状态 (开启/停止)\n np -k - Change NodePass API key / 更换 NodePass API key\n np -s - Show NodePass API info / 显示 NodePass API 信息\n np -h - Show help information / 显示帮助信息"
 C[22]="${E[22]}"
 E[23]="Please enter the path to your TLS certificate file:"
 C[23]="请输入您的 TLS 证书文件路径:"
@@ -131,8 +131,8 @@ E[55]="Rollback failed, please check manually"
 C[55]="回滚失败，请手动检查"
 E[56]="Stop API"
 C[56]="关闭 API"
-E[57]="Create shortcut [ np ] successfully."
-C[57]="创建快捷 [ np ] 指令成功!"
+E[57]="Create shortcuts successfully: script can be run with [ np ] command, and [ nodepass ] binary is directly executable."
+C[57]="创建快捷方式成功: 脚本可通过 [ np ] 命令运行，[ nodepass ] 二进制文件可直接执行!"
 E[58]="Start API"
 C[58]="开启 API"
 E[59]="NodePass is not installed. Configuration file not found"
@@ -1091,6 +1091,7 @@ bash <($DOWNLOAD_COMMAND https://run.nodepass.eu/np.sh) \$1
 EOF
   chmod +x ${WORK_DIR}/np.sh
   ln -sf ${WORK_DIR}/np.sh /usr/bin/np
+  ln -sf ${WORK_DIR}/nodepass /usr/bin/nodepass
   [ -s /usr/bin/np ] && info "\n $(text 57) "
 }
 
@@ -1118,7 +1119,7 @@ uninstall() {
     rm -f /etc/init.d/nodepass
   fi
 
-  rm -rf "$WORK_DIR" /usr/bin/np
+  rm -rf "$WORK_DIR" /usr/bin/{np,nodepass}
   info " $(text 11) "
 }
 
