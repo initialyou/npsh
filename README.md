@@ -22,7 +22,7 @@ NodePass 通用TCP/UDP隧道解决方案，免配置单文件多模式，采用�
 
 ## 项目特点
 
-- **多系统支持**：兼容 Debian、Ubuntu、CentOS、Fedora、Alpine、Arch 和 OpenWrt 等多种 Linux 发行版
+- **多系统支持**：兼容 Debian、Ubuntu、CentOS、Fedora、Alpine、Arch 和 OpenWRT 等多种 Linux 发行版
 - **双语界面**：提供中英文双语界面，满足不同用户的语言需求
 - **自动检测**：自动检测系统架构、依赖和环境，确保安装过程顺利进行
 - **灵活配置**：支持自定义端口、API 前缀和 TLS 加密模式
@@ -103,8 +103,8 @@ bash <(curl -sSL https://run.nodepass.eu/np.sh) \
   --user_port 18080 \
   --prefix api \
   --tls_mode 2 \
-  --cert_file /tmp/cert.pem \
-  --key_file /tmp/key.pem
+  --cert_file </path/to/cert.pem> \
+  --key_file </path/to/key.pem>
 ```
 </details>
 
@@ -139,7 +139,7 @@ bash <(curl -sSL https://run.nodepass.eu/np.sh) \
 
 ## 系统要求
 
-- 操作系统：支持 Debian、Ubuntu、CentOS、Fedora、Alpine、Arch 和 OpenWrt 等 Linux 发行版
+- 操作系统：支持 Debian、Ubuntu、CentOS、Fedora、Alpine、Arch 和 OpenWRT 等 Linux 发行版
 - 架构：支持 x86_64 (amd64)、aarch64 (arm64) 和 armv7l (arm)
 - 权限：需要 root 权限运行脚本
 

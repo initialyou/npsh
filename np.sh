@@ -149,6 +149,10 @@ E[64]="Failed to change API KEY"
 C[64]="API KEY 更换失败"
 E[65]="Changing NodePass API KEY..."
 C[65]="正在更换 NodePass API KEY..."
+E[66]="NodePass Local Core:"
+C[66]="NodePass 本地核心:"
+E[67]="NodePass Latest Core:"
+C[67]="NodePass 最新核心:"
 
 # 自定义字体彩色，read 函数
 warning() { echo -e "\033[31m\033[01m$*\033[0m"; }  # 红色
@@ -226,7 +230,7 @@ check_system() {
       SYSTEMCTL_ENABLE='systemctl enable nodepass'
       SYSTEMCTL_DISABLE='systemctl disable nodepass'
       ;;
-    OpenWrt)
+    OpenWRT)
       PACKAGE_INSTALL='opkg install'
       PACKAGE_UPDATE='opkg update'
       PACKAGE_UNINSTALL='opkg remove'
@@ -283,7 +287,7 @@ check_install() {
   elif [ "$SERVICE_MANAGE" = "rc-service" ] && ! rc-service nodepass status &>/dev/null; then
     return 1
   elif [ "$SERVICE_MANAGE" = "init.d" ]; then
-    # OpenWrt 系统检查服务状态
+    # OpenWRT 系统检查服务状态
     if [ -f "/var/run/nodepass.pid" ] && kill -0 $(cat "/var/run/nodepass.pid" 2>/dev/null) >/dev/null 2>&1; then
       return 0
     else
@@ -356,7 +360,7 @@ check_system_info() {
 
   # 检查系统
   if [ -f /etc/openwrt_release ]; then
-    SYSTEM="OpenWrt"
+    SYSTEM="OpenWRT"
     SERVICE_MANAGE="init.d"
   elif [ -f /etc/os-release ]; then
     source /etc/os-release
@@ -499,7 +503,7 @@ get_api_url() {
       # 从OpenRC服务文件中提取CMD行
       local CMD_LINE=$(sed -n 's/.*command_args.*\(master.*\)/\1/p' "/etc/init.d/nodepass")
     elif [ "$SERVICE_MANAGE" = "init.d" ] && [ -s "/etc/init.d/nodepass" ]; then
-      # 从OpenWrt服务文件中提取CMD行
+      # 从OpenWRT服务文件中提取CMD行
       local CMD_LINE=$(sed -n 's/^CMD="\([^"]\+\)"/\1/p' "/etc/init.d/nodepass")
     fi
 
@@ -542,6 +546,11 @@ get_random_port() {
     check_port "$RANDOM_PORT" && break
   done
   echo "$RANDOM_PORT"
+}
+
+# 获取本地版本
+get_local_version() {
+  LOCAL_VERSION=$(${WORK_DIR}/nodepass -v 2>/dev/null | sed -n '/Version/s/.*\(v[0-9.]\+\).*/\1/gp')
 }
 
 # 获取最新版本
@@ -666,7 +675,7 @@ stop_nodepass() {
 # 升级 NodePass
 upgrade_nodepass() {
   # 获取本地版本
-  local LOCAL_VERSION=$(${WORK_DIR}/nodepass -v 2>/dev/null | sed -n '/Version/s/.*\(v[0-9.]\+\).*/\1/gp')
+  grep -q '^$' <<< "$LOCAL_VERSION" && get_local_version
 
   if [ -z "$LOCAL_VERSION" ]; then
     warning " $(text 44) "
@@ -674,7 +683,7 @@ upgrade_nodepass() {
   fi
 
   # 获取远程最新版本
-  get_latest_version
+  grep -q '^$' <<< "$LATEST_VERSION" && get_latest_version
   info "\n $(text 45) "
   info " $(text 46) "
 
@@ -693,7 +702,6 @@ upgrade_nodepass() {
   fi
 
   # 停止服务
-  info " $(text 50) "
   stop_nodepass
 
   # 备份旧版本
@@ -719,7 +727,6 @@ upgrade_nodepass() {
   chmod +x "$WORK_DIR/nodepass"
 
   # 启动服务
-  info " $(text 51) "
   if start_nodepass; then
     info " $(text 52) "
     # 删除备份
@@ -1192,7 +1199,10 @@ menu_setting() {
   INSTALL_STATUS=$1
 
   # 清空数组
-  unset OPTION ACTION
+  unset OPTION ACTION 
+
+  # 获取在线的最新 NodePass 版本
+  get_latest_version
 
   # 根据安装状态设置菜单选项和动作
   if [ "$INSTALL_STATUS" = 2 ]; then
@@ -1206,6 +1216,8 @@ menu_setting() {
   else
     get_api_key
     get_api_url
+    get_local_version
+
     # 已安装状态
     if [ $INSTALL_STATUS -eq 0 ]; then
       NODEPASS_STATUS=$(text 34)
@@ -1244,6 +1256,9 @@ menu() {
 │   >Universal TCP/UDP Tunneling Solution   │
 │   >https://github.com/yosebyte/nodepass   │
 ╰───────────────────────────────────────────╯ "
+
+  grep -q '.' <<< "$LOCAL_VERSION" && info " $(text 66) $LOCAL_VERSION "
+  grep -q '.' <<< "$LATEST_VERSION" && info " $(text 67) $LATEST_VERSION "
   grep -qEw '0|1' <<< "$INSTALL_STATUS" && info " $(text 60) $NODEPASS_STATUS "
   grep -q '.' <<< "$API_URL" && info " $(text 39) $API_URL "
   grep -q '.' <<< "$KEY" && info " $(text 40) $KEY "

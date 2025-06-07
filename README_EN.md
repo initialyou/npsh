@@ -22,7 +22,7 @@ This script provides easy-to-use master mode (API mode) installation, configurat
 
 ## Features
 
-- **Multi-System Support**: Compatible with various Linux distributions including Debian, Ubuntu, CentOS, Fedora, Alpine, Arch, and OpenWrt
+- **Multi-System Support**: Compatible with various Linux distributions including Debian, Ubuntu, CentOS, Fedora, Alpine, Arch, and OpenWRT
 - **Bilingual Interface**: Provides both Chinese and English interfaces to meet different language preferences
 - **Automatic Detection**: Auto-detects system architecture, dependencies, and environment to ensure smooth installation
 - **Flexible Configuration**: Supports custom ports, API prefixes, and TLS encryption modes
@@ -103,8 +103,8 @@ bash <(curl -sSL https://run.nodepass.eu/np.sh) \
   --user_port 18080 \
   --prefix api \
   --tls_mode 2 \
-  --cert_file /tmp/cert.pem \
-  --key_file /tmp/key.pem
+  --cert_file </path/to/cert.pem> \
+  --key_file </path/to/key.pem>
 ```
 </details>
 
@@ -139,7 +139,7 @@ After installation, the system creates `np` shortcuts that can be used as follow
 
 ## System Requirements
 
-- Operating System: Supports Linux distributions including Debian, Ubuntu, CentOS, Fedora, Alpine, Arch, and OpenWrt
+- Operating System: Supports Linux distributions including Debian, Ubuntu, CentOS, Fedora, Alpine, Arch, and OpenWRT
 - Architecture: Supports x86_64 (amd64), aarch64 (arm64), and armv7l (arm)
 - Permissions: Requires root privileges to run the script
 
