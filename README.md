@@ -1,69 +1,90 @@
-# NodePass 部署脚本
-
-## 项目说明
-
-NodePass 通用TCP/UDP隧道解决方案，免配置单文件多模式，采用控制数据双路分离架构，内置零延迟自适应连接池，实现跨网络限制的快速安全访问。
-
-本脚本提供了简单易用的 master 模式，即 API 模式的安装、配置和管理功能。
+# 📘 NodePass 安装与管理说明文档
 
 简体中文 | [English](README_EN.md)
 
-## 目录
-- [项目说明](#项目说明)
-- [项目特点](#项目特点)
-- [部署方法](#部署方法)
-  - [交互式部署](#交互式部署)
-  - [无交互式部署](#无交互式部署)
-- [部署后的快捷指令](#部署后的快捷指令)
-- [目录结构](#目录结构)
-- [系统要求](#系统要求)
-- [部署截图](#部署截图)
-- [问题反馈](#问题反馈)
+`np.sh`: 一键部署 NodePass 主程序，提供高性能 TCP/UDP 隧道服务，支持多系统和灵活配置。
 
-## 项目特点
+`dash.sh`: 一键部署 NodePassDash 控制面板，简化隧道管理和监控，支持容器化和 HTTPS 配置。
 
-- **多系统支持**：兼容 Debian、Ubuntu、CentOS、Fedora、Alpine、Arch 和 OpenWRT 等多种 Linux 发行版
-- **双语界面**：提供中英文双语界面，满足不同用户的语言需求
-- **自动检测**：自动检测系统架构、依赖和环境，确保安装过程顺利进行
-- **灵活配置**：支持自定义端口、API 前缀和 TLS 加密模式
-- **TLS 加密**：提供多种 TLS 加密选项，包括无加密、自签名证书和自定义证书
-- **服务管理**：支持一键启动、停止和重启服务
-- **自动更新**：检查并安装最新版本，保持软件始终处于最新状态
-- **容器支持**：自动识别容器环境并适配相应的服务管理方式
-- **快捷指令**：安装后创建快捷指令，方便日常管理
+---
 
-## 部署方法
+## 📑 目录
 
-### 交互式部署
+* [项目介绍](#项目介绍)
+* [系统要求](#系统要求)
+* [一、np.sh 脚本（主程序安装）](#一npsh-脚本主程序安装)
 
-1. 下载并执行脚本：
+  * [功能特色](#功能特色)
+  * [部署方法](#部署方法)
+
+    * [交互式部署](#交互式部署)
+    * [无交互式部署](#无交互式部署)
+  * [部署后的快捷指令](#部署后的快捷指令)
+  * [目录结构](#目录结构)
+* [二、dash.sh 脚本（控制面板安装）](#二dashsh-脚本控制面板安装)
+
+  * [功能特色](#功能特色-1)
+  * [使用说明](#使用说明)
+  * [卸载说明](#卸载说明)
+* [部署截图](#部署截图)
+* [常见问题与反馈](#常见问题与反馈)
+
+---
+
+## 项目介绍
+
+**NodePass** 是一款通用 TCP/UDP 隧道解决方案，采用控制数据双路分离架构，支持零延迟连接池与多模式通信，致力于实现高性能、跨网络限制的安全访问。
+
+---
+
+## 系统要求
+
+* **操作系统**：兼容 Debian、Ubuntu、CentOS、Fedora、Alpine、Arch、OpenWRT 等
+* **系统架构**：支持 x86\_64（amd64）、aarch64（arm64）、armv7l（arm）
+* **权限要求**：需要 root 权限运行
+
+---
+
+## 一、`np.sh` 脚本（主程序安装）
+
+### 功能特色
+
+* ✅ 多系统支持
+* 🌐 支持中英文界面
+* 🔍 自动检测架构与依赖
+* 🔧 灵活配置端口、API 前缀、TLS 模式
+* 🔐 支持无加密、自签名或自定义证书
+* 🛠️ 支持服务一键启动、停止、重启、卸载
+* 🔄 自动更新保持最新版本
+* 🐳 自动识别容器环境
+
+---
+
+### 部署方法
+
+#### 交互式部署
 
 ```bash
 bash <(wget -qO- https://run.nodepass.eu/np.sh)
 ```
-
 或
-
 ```bash
 bash <(curl -sSL https://run.nodepass.eu/np.sh)
 ```
 
-2. 按照界面提示选择语言（默认中文）
-3. 在主菜单中选择"安装 NodePass"
-4. 根据提示输入以下信息：
-   - 服务器 IP（默认为 127.0.0.1）
-   - 端口号（1024-65535，留空则使用 1024-8192 的随机端口）
-   - API 前缀（默认为 api）
-   - TLS 模式（0: 无加密, 1: 自签名证书, 2: 自定义证书）
-5. 等待安装完成
+跟随提示操作，依次填写以下信息：
 
-### 无交互式部署
+* 语言选择（默认中文）
+* 服务器 IP（默认 127.0.0.1）
+* 端口（可留空，系统将自动分配 1024–8192 范围内端口）
+* API 前缀（默认 `api`）
+* TLS 模式（0: 无加密, 1: 自签名证书, 2: 自定义证书）
 
-使用以下命令进行无交互式安装，可以通过命令行参数指定配置：
+---
 
-<details>
-    <summary> 示例1：使用中文，指定服务器IP、端口、API前缀和无TLS加密（点击即可展开或收起）</summary>
-<br>
+#### 无交互式部署
+
+<details><summary>示例1：无TLS加密</summary>
 
 ```bash
 bash <(curl -sSL https://run.nodepass.eu/np.sh) \
@@ -74,11 +95,10 @@ bash <(curl -sSL https://run.nodepass.eu/np.sh) \
   --prefix api \
   --tls_mode 0
 ```
+
 </details>
 
-<details>
-    <summary> 示例2：使用英文，指定服务器IP、端口、API前缀和自签名证书（点击即可展开或收起）</summary>
-<br>
+<details><summary>示例2：自签名证书</summary>
 
 ```bash
 bash <(curl -sSL https://run.nodepass.eu/np.sh) \
@@ -89,11 +109,10 @@ bash <(curl -sSL https://run.nodepass.eu/np.sh) \
   --prefix api \
   --tls_mode 1
 ```
+
 </details>
 
-<details>
-    <summary> 示例3：使用中文，指定服务器IP、端口、API前缀、自定义证书及证书文件路径（点击即可展开或收起）</summary>
-<br>
+<details><summary>示例3：自定义证书</summary>
 
 ```bash
 bash <(curl -sSL https://run.nodepass.eu/np.sh) \
@@ -106,47 +125,113 @@ bash <(curl -sSL https://run.nodepass.eu/np.sh) \
   --cert_file </path/to/cert.pem> \
   --key_file </path/to/key.pem>
 ```
+
 </details>
 
-如果不指定参数，将使用默认配置：
-- 服务器 IP: 127.0.0.1
-- 端口: 1024-8192 随机端口
-- API 前缀: api
-- TLS 模式: 无加密
+---
 
-## 部署后的快捷指令
+### 部署后的快捷指令
 
-安装完成后，系统会创建 `np` 快捷指令，可以通过以下方式使用：
+系统将创建 `np` 快捷命令：
 
-- `np` - 显示菜单
-- `np -i` - 安装 NodePass
-- `np -u` - 卸载 NodePass
-- `np -v` - 升级 NodePass
-- `np -o` - 切换服务状态（开启/停止）
-- `np -k` - 更换 NodePass API key
-- `np -s` - 显示 NodePass API 信息
-- `np -h` - 显示帮助信息
+| 命令      | 功能说明        |
+| ------- | ----------- |
+| `np`    | 显示交互式菜单     |
+| `np -i` | 安装 NodePass |
+| `np -u` | 卸载 NodePass |
+| `np -v` | 升级 NodePass |
+| `np -o` | 启动/停止服务     |
+| `np -k` | 更换 API key  |
+| `np -s` | 查看 API 信息   |
+| `np -h` | 显示帮助信息      |
 
-## 目录结构
+---
+
+### 目录结构
 
 ```
 /etc/nodepass/
-├── data                # 配置数据文件
+├── data                # 配置数据
 ├── nodepass            # 主程序
 ├── nodepass.gob        # 数据存储文件
-└── np.sh               # 部署和管理脚本
+└── np.sh               # 部署脚本
 ```
 
-## 系统要求
+---
 
-- 操作系统：支持 Debian、Ubuntu、CentOS、Fedora、Alpine、Arch 和 OpenWRT 等 Linux 发行版
-- 架构：支持 x86_64 (amd64)、aarch64 (arm64) 和 armv7l (arm)
-- 权限：需要 root 权限运行脚本
+## 二、`dash.sh` 脚本（控制面板安装）
+
+### 功能特色
+
+* 🚀 一键部署 NodePassDash 控制面板
+* 🐧 支持 Debian、Ubuntu、CentOS
+* 🔧 自动检测系统和依赖环境
+* 🐳 支持 Docker 和 Podman 部署容器
+* 🔄 自动配置反向代理（支持 HTTPS）
+* 🔐 自动申请 CA SSL 证书（域名部署时）
+* 📂 自动挂载日志与公共资源目录
+
+---
+
+### 使用说明
+
+1. **运行脚本**：
+
+```bash
+bash <(wget -qO- https://run.nodepass.eu/dash.sh)
+```
+或
+```bash
+bash <(curl -sSL https://run.nodepass.eu/dash.sh)
+```
+
+2. **输入信息**：
+
+* 域名或 IP：输入域名会自动配置 HTTPS 反向代理并申请 SSL；输入 IP 则跳过反向代理与 Caddy 安装。
+* 端口：默认 3000，可自定义。
+
+3. **部署容器**：
+
+* 自动使用 Docker 或 Podman 运行面板容器
+* 检查端口是否占用
+
+4. **挂载目录**：
+
+| 主机路径                    | 容器内路径         | 用途   |
+| ----------------------- | ------------- | ---- |
+| `~/nodepassdash/logs`   | `/app/logs`   | 日志文件 |
+| `~/nodepassdash/public` | `/app/public` | 公共资源 |
+
+5. **完成提示**：脚本安装完毕后会输出访问地址和管理员账户信息。
+
+---
+
+### 卸载说明
+
+卸载 NodePassDash 控制面板：
+
+```bash
+bash <(wget -qO- https://run.nodepass.eu/dash.sh) uninstall
+```
+或
+```bash
+bash <(curl -sSL https://run.nodepass.eu/dash.sh) uninstall
+```
+
+将会清理容器、配置文件与挂载目录。
+
+---
 
 ## 部署截图
 
-![Image](https://github.com/user-attachments/assets/4453fde6-d64a-4557-b938-13a1affcd81f)
+<img width="690" alt="image" src="https://github.com/user-attachments/assets/4453fde6-d64a-4557-b938-13a1affcd81f" />
 
-## 问题反馈
+<img width="690" alt="image" src="https://github.com/user-attachments/assets/61e01872-f401-485d-aa9a-8c1388e76a5b" />
 
-如遇到问题，请前往 [GitHub Issues](https://github.com/NodePassProject/npsh/issues) 提交反馈。
+---
+
+## 常见问题与反馈
+
+如遇到安装或使用问题，请前往 GitHub 提交 Issues：
+
+👉 [NodePass GitHub Issues](https://github.com/NodePassProject/npsh/issues)

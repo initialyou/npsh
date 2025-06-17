@@ -532,7 +532,7 @@ get_api_key() {
   # 从nodepass.gob文件中提取KEY
   if [ -s "$WORK_DIR/nodepass.gob" ]; then
     KEY=$(grep -a -o '[0-9a-f]\{32\}' $WORK_DIR/nodepass.gob)
-    grep -q 'output' <<< "$1" && info " $(text 40) $KEY "
+    grep -q 'output' <<< "$1" && info " $(text 40) $KEY"
   else
     warning " $(text 59) "
   fi
@@ -1176,7 +1176,7 @@ change_api_key() {
 
     # 显示 API 信息
     get_api_url output
-    info " $(text 40) $NEW_KEY "
+    info " $(text 40) $NEW_KEY"
 
     # 如果之前是停止状态，恢复停止状态
     [ "$NEED_STOP" = 1 ] && stop_nodepass
@@ -1260,8 +1260,8 @@ menu() {
   grep -q '.' <<< "$LOCAL_VERSION" && info " $(text 66) $LOCAL_VERSION "
   grep -q '.' <<< "$LATEST_VERSION" && info " $(text 67) $LATEST_VERSION "
   grep -qEw '0|1' <<< "$INSTALL_STATUS" && info " $(text 60) $NODEPASS_STATUS "
-  grep -q '.' <<< "$API_URL" && info " $(text 39) $API_URL "
-  grep -q '.' <<< "$KEY" && info " $(text 40) $KEY "
+  grep -q '.' <<< "$API_URL" && info " $(text 39) $API_URL"
+  grep -q '.' <<< "$KEY" && info " $(text 40) $KEY"
 
   info " Version: $SCRIPT_VERSION $(text 1) "
   echo "------------------------"
