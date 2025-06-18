@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# 更新时间 2025-06-18
+
 # 定义颜色
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -294,16 +296,35 @@ $CONTAINER_CMD run -d \
 # 获取容器日志并提取管理员账户信息
 echo -e "${GREEN}获取面板和管理员账户信息...${NC}"
 
-# 等待 5 秒以确保服务启动
-sleep 5
+# 定义日志检查命令
+LOG_CHECK_COMMAND="$CONTAINER_CMD logs nodepassdash 2>&1"
+
+# 等待直到出现管理员账户信息，最长不超过 60 秒
+TIMEOUT=60
+ELAPSED=0
+INTERVAL=2
+
+while [[ $ELAPSED -lt $TIMEOUT ]]; do
+  eval "$LOG_CHECK_COMMAND" | grep -q "管理员账户信息" && break
+  sleep $INTERVAL
+  ELAPSED=$((ELAPSED + INTERVAL))
+done
+
+if [[ $ELAPSED -ge $TIMEOUT ]]; then
+  echo -e "${RED}${TIMEOUT}秒还没能获取管理员账户信息，请检查容器日志：${NC}"
+  eval "$LOG_CHECK_COMMAND"
+else
+  echo -e "${GREEN}管理员账户信息已成功获取。${NC}"
+fi
 
 # 显示面板地址
 if [[ "$INPUT" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo -e "${GREEN}面板地址: http://$INPUT:$PORT${NC}"
 elif [[ "$INPUT" =~ ^[0-9a-fA-F:]+$ ]]; then
-  echo -e "${GREEN}面板地址: http://[$INPUT]:$PORT${NC}"
+  echo -e "${GREEN}面板地址: http://$INPUT:$PORT${NC}"
 else
   echo -e "${GREEN}面板地址: https://$INPUT${NC}"
 fi
 
-$CONTAINER_CMD logs nodepassdash 2>&1 | grep -A 5 "管理员账户信息："
+# 展示匹配到的内容
+eval "$LOG_CHECK_COMMAND" | grep -A 5 "管理员账户信息"
