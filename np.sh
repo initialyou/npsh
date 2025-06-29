@@ -482,7 +482,7 @@ get_api_url() {
   [ -s "$WORK_DIR/data" ] && source "$WORK_DIR/data"
 
   # 检查是否已安装
-  if [ -s "$WORK_DIR/nodepass.gob" ]; then
+  if [ -s "$WORK_DIR/gob/nodepass.gob" ]; then
     # 在容器环境中优先从data文件获取参数
     if [ "$IN_CONTAINER" = 1 ] || [ "$SERVICE_MANAGE" = "none" ]; then
       if [ -s "$WORK_DIR/data" ] && grep -q "CMD=" "$WORK_DIR/data" ]; then
@@ -530,8 +530,8 @@ get_api_url() {
 # 查询 NodePass KEY
 get_api_key() {
   # 从nodepass.gob文件中提取KEY
-  if [ -s "$WORK_DIR/nodepass.gob" ]; then
-    KEY=$(grep -a -o '[0-9a-f]\{32\}' $WORK_DIR/nodepass.gob)
+  if [ -s "$WORK_DIR/gob/nodepass.gob" ]; then
+    KEY=$(grep -a -o '[0-9a-f]\{32\}' $WORK_DIR/gob/nodepass.gob)
     grep -q 'output' <<< "$1" && info " $(text 40) $KEY"
   else
     warning " $(text 59) "
