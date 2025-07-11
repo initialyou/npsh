@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # 当前脚本版本号
-SCRIPT_VERSION='0.0.3'
+SCRIPT_VERSION='0.0.4'
 
 # 环境变量用于在Debian或Ubuntu操作系统中设置非交互式（noninteractive）安装模式
 export DEBIAN_FRONTEND=noninteractive
@@ -17,10 +17,10 @@ trap "rm -rf $TEMP_DIR >/dev/null 2>&1 ; echo -e '\n' ;exit" INT QUIT TERM EXIT
 
 mkdir -p $TEMP_DIR
 
-E[0]="\n Language:\n 1. 简体中文\n 2. English"
+E[0]="\n Language:\n 1. 简体中文 (Default)\n 2. English"
 C[0]="${E[0]}"
-E[1]="1.For intranet machines, support creating an instance that tunnels to the NodePass server during installation; 2.Change Github proxy, to better support the domestic environment and only IPv6 machines."
-C[1]="1.对于内网机器，支持在安装的时候一并创建穿透到 NodePass 服务端的实例; 2.更换 Github 代理，以更好的支持墙内环境和仅IPv6机器"
+E[1]="1. Output the standard URI format and QR code for the NodePass API; 2. Automatically detect the machine's IPv4 and IPv6 addresses via an IP API; if incorrect, allow manual input; 3. When users input an IP address, intelligently recognize IPv6 with or without square brackets [ ] for better compatibility; 4. Significantly improve the installation speed of the script."
+C[1]="1. 输出 NodePass API 的标准 URI 格式和二维码; 2. 通过 IP API 自动识别机器的 IPv4 和 IPv6，如不正确，可手动填写; 3. 在用户输入 IP 时，支持智能识别 IPv6，无论是否带有方括号 [ ] 都能自动兼容; 4. 大幅提升脚本安装速度"
 E[2]="The script must be run as root, you can enter sudo -i and then download and run again. Feedback: [https://github.com/NodePassProject/npsh/issues]"
 C[2]="必须以 root 方式运行脚本，可以输入 sudo -i 后重新下载运行，问题反馈:[https://github.com/NodePassProject/npsh/issues]"
 E[3]="Unsupported architecture: \$(uname -m)"
@@ -35,16 +35,16 @@ E[7]="Install dependence-list:"
 C[7]="安装依赖列表:"
 E[8]="Failed to install download tool (curl). Please install wget or curl manually."
 C[8]="无法安装下载工具（curl）。请手动安装 wget 或 curl。"
-E[9]="Failed to download or extract"
-C[9]="下载或解压失败"
+E[9]="Failed to download \$APP"
+C[9]="下载 \$APP 失败"
 E[10]="NodePass installed successfully!"
 C[10]="NodePass 安装成功！"
 E[11]="NodePass has been uninstalled"
 C[11]="NodePass 已卸载"
-E[12]="Please enter listener IP (The internal machine uses 127.0.0.1):"
-C[12]="请输入监听 IP (内网机器使用 127.0.0.1):"
-E[13]="Please enter the port (1024-65535, press Enter for random port):"
-C[13]="请输入端口 (1024-65535，回车使用随机端口):"
+E[12]="The external network of the current machine is single-stack:\\\n 1. \${SERVER_IPV4_DEFAULT}\${SERVER_IPV6_DEFAULT}\(default\)\\\n 2. Do not listen on the public network, only listen locally\\\n\\\n Please select or enter the domain or IP directly:"
+C[12]="检测到本机的外网是单栈:\\\n 1. \${SERVER_IPV4_DEFAULT}\${SERVER_IPV6_DEFAULT}，监听全栈 \(默认\)\\\n 2. 不对公网监听，只监听本地\\\n\\\n 请选择或者直接输入域名或 IP:"
+E[13]="Please enter the port (1024-65535, NAT machine must use an open port, press Enter for random port):"
+C[13]="请输入端口 (1024-65535，NAT 机器必须使用开放的端口，回车使用随机端口):"
 E[14]="Please enter API prefix (lowercase letters, numbers and / only, press Enter for default \"api\"):"
 C[14]="请输入 API 前缀 (仅限小写字母、数字和斜杠/，回车使用默认 \"api\"):"
 E[15]="Please select TLS mode (press Enter for none TLS encryption):"
@@ -55,8 +55,8 @@ E[17]="Please enter the correct option"
 C[17]="请输入正确的选项"
 E[18]="NodePass is already installed, please uninstall it before reinstalling"
 C[18]="NodePass 已安装，请先卸载后再重新安装"
-E[19]="Downloading NodePass \$LATEST_VERSION ..."
-C[19]="开始下载 NodePass \$LATEST_VERSION ..."
+E[19]="NodePass \$LATEST\_VERSION and QRencode have been downloaded."
+C[19]="已下载 NodePass \$LATEST_VERSION 和 QRencode"
 E[20]="Failed to get latest version"
 C[20]="无法获取最新版本"
 E[21]="Running in container environment, skipping service creation and starting process directly"
@@ -173,6 +173,10 @@ E[76]="Successfully modified the intranet penetration instance"
 C[76]="成功修改内网穿透实例"
 E[77]="Failed to modify the intranet penetration instance"
 C[77]="修改内网穿透实例失败"
+E[78]="The external network of the current machine is dual-stack:\\\n 1. \${SERVER_IPV4_DEFAULT}，listen all stacks \(default\)\\\n 2. \${SERVER_IPV6_DEFAULT}，listen all stacks\\\n 3. Do not listen on the public network, only listen locally\\\n\\\n Please select or enter the domain or IP directly:"
+C[78]="检测到本机的外网是双栈:\\\n 1. \${SERVER_IPV4_DEFAULT}，监听全栈 \(默认\)\\\n 2. \${SERVER_IPV6_DEFAULT}，监听全栈\\\n 3. 不对公网监听，只监听本地\\\n\\\n 请选择或者直接输入域名或 IP:"
+E[79]="URI:"
+C[79]="URI:"
 
 # 自定义字体彩色，read 函数
 warning() { echo -e "\033[31m\033[01m$*\033[0m"; }  # 红色
@@ -284,7 +288,20 @@ check_system() {
 check_install() {
   if [ ! -f "$WORK_DIR/nodepass" ]; then
     return 2
-  elif [ "$IN_CONTAINER" = 1 ] || [ "$SERVICE_MANAGE" = "none" ]; then
+  else
+    # 根据服务管理方式获取 http 或 https
+    if [ "$IN_CONTAINER" = 1 ] || [ "$SERVICE_MANAGE" = "none" ]; then
+      grep -q '^CMD=.*tls=0' ${WORK_DIR}/data && HTTP_S="http" || HTTP_S="https"
+    elif [ "$SERVICE_MANAGE" = "systemctl" ]; then
+      grep -q '^ExecStart=.*tls=0' /etc/systemd/system/nodepass.service && HTTP_S="http" || HTTP_S="https"
+    elif [ "$SERVICE_MANAGE" = "rc-service" ]; then
+      grep -q '^command_args=.*tls=0' /etc/init.d/nodepass && HTTP_S="http" || HTTP_S="https"
+    elif [ "$SERVICE_MANAGE" = "init.d" ]; then
+      grep -q '^PROG=.*tls=0' /etc/init.d/nodepass && HTTP_S="http" || HTTP_S="https"
+    fi
+  fi
+
+  if [ "$IN_CONTAINER" = 1 ] || [ "$SERVICE_MANAGE" = "none" ]; then
     if [ $(type -p pgrep) ]; then
       # 过滤掉僵尸进程 <defunct>
       if pgrep -laf "nodepass" | grep -vE "grep|<defunct>" | grep -q "nodepass"; then
@@ -590,6 +607,16 @@ get_api_key() {
   fi
 }
 
+# 生成 URI
+get_uri() {
+  grep -q '^$' <<< "$API_URL" && get_api_url
+  grep -q '^$' <<< "$KEY" && get_api_key
+
+  URI="np://master?url=$(echo -n "$API_URL" | base64 -w0)&key=$(echo -n "$KEY" | base64 -w0)"
+
+  grep -q 'output' <<< "$1" && grep -q '.' <<< "$URI" && info " $(text 79) $URI" && ${WORK_DIR}/qrencode "$URI"
+}
+
 # 获取随机可用端口，目标范围是 1024-8192，共7168个
 get_random_port() {
   local RANDOM_PORT
@@ -839,12 +866,101 @@ parse_args() {
 
 # 主安装函数
 install() {
+  # 根据用户输入的 IP 地址，选择对应的 IP 地址
+  handle_ip_input() {
+    local IP="$1"
+
+    unset SERVER_INPUT
+
+    # 去掉用户输入 IPv6 时的方括号  # 去掉用户输入 IPv6 时的方括号
+    IP=$(sed 's/[][]//g' <<< "$IP")
+
+    # 如果输入的是 localhost 或 127.0.0.1 或 ::1，则设置为 127.0.0.1
+    if [[ "$IP" = "localhost" || "$IP" = "127.0.0.1" || "$IP" = "::1" ]]; then
+      SERVER_INPUT="127.0.0.1"
+    else
+      # 如果获取到 IPv4 和 IPv6，则提示用户选择
+      if grep -q '.' <<< "${SERVER_IPV4_DEFAULT}" && grep -q '.' <<< "${SERVER_IPV6_DEFAULT}"; then
+        case "$IP" in
+          1|"") SERVER_INPUT="${SERVER_IPV4_DEFAULT}" ;;
+          2) SERVER_INPUT="${SERVER_IPV6_DEFAULT}" ;;
+          3) SERVER_INPUT="127.0.0.1" ;;
+          *) SERVER_INPUT="$IP" ;;
+        esac
+      # 如果获取到 IPv4 或 IPv6，则设置为对应的 IP
+      elif ( grep -q '.' <<< "${SERVER_IPV4_DEFAULT}" && grep -q '^$' <<< "${SERVER_IPV6_DEFAULT}" ) || ( grep -q '^$' <<< "${SERVER_IPV4_DEFAULT}" && grep -q '.' <<< "${SERVER_IPV6_DEFAULT}" ); then
+        case "$IP" in
+          1|"") SERVER_INPUT="${SERVER_IPV4_DEFAULT}${SERVER_IPV6_DEFAULT}" ;;
+          2) SERVER_INPUT="127.0.0.1" ;;
+          *) SERVER_INPUT="$IP" ;;
+        esac
+
+      # 如果获取不到 IPv4 和 IPv6，则设置为输入的 IP
+      else
+        SERVER_INPUT="$IP"
+      fi
+    fi
+  }
+
+  # 后台下载 NodePass 和 qrencode（60秒超时，重试2次）
+  if [ "$DOWNLOAD_TOOL" = "wget" ]; then
+    { wget --timeout=60 --tries=2 "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${LATEST_VERSION}/nodepass_${VERSION_NUM}_linux_${ARCH}.tar.gz" -qO- | tar -xz -C "$TEMP_DIR" --wildcards 'nodepass'; } &
+    { wget --no-check-certificate --timeout=60 --tries=2 --continue -qO "$TEMP_DIR/qrencode" "https://${GH_PROXY}github.com/fscarmen/client_template/raw/main/qrencode-go/qrencode-go-linux-$ARCH" >/dev/null 2>&1 && chmod +x "$TEMP_DIR/qrencode" >/dev/null 2>&1; } &
+  else
+    { curl --connect-timeout 60 --max-time 60 --retry 2 -sL "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${LATEST_VERSION}/nodepass_${VERSION_NUM}_linux_${ARCH}.tar.gz" | tar -xz -C "$TEMP_DIR" --wildcards 'nodepass'; } &
+    { curl --connect-timeout 60 --max-time 60 --retry 2 -o "$TEMP_DIR/qrencode" "https://${GH_PROXY}github.com/fscarmen/client_template/raw/main/qrencode-go/qrencode-go-linux-$ARCH" >/dev/null 2>&1 && chmod +x "$TEMP_DIR/qrencode" >/dev/null 2>&1; } &
+  fi
+
   # 服务器 IP
-  [ -n "$ARGS_SERVER_IP" ] && SERVER_INPUT="$ARGS_SERVER_IP" || reading "\n (1/4) $(text 12) " SERVER_INPUT
-  while ! validate_ip_address  "$SERVER_INPUT"; do
+  if [ -n "$ARGS_SERVER_IP" ]; then
+    SERVER_INPUT="$ARGS_SERVER_IP"
+  else
+    if [ $(type -p ip) ]; then
+      local DEFAULT_LOCAL_INTERFACE4=$(ip -4 route show default | awk '/default/ {for (i=0; i<NF; i++) if ($i=="dev") {print $(i+1); exit}}')
+      local DEFAULT_LOCAL_INTERFACE6=$(ip -6 route show default | awk '/default/ {for (i=0; i<NF; i++) if ($i=="dev") {print $(i+1); exit}}')
+
+      if [ -n ""${DEFAULT_LOCAL_INTERFACE4}${DEFAULT_LOCAL_INTERFACE6}"" ]; then
+        grep -q '.' <<< "$DEFAULT_LOCAL_INTERFACE4" && local DEFAULT_LOCAL_IP4=$(ip -4 addr show $DEFAULT_LOCAL_INTERFACE4 | sed -n 's#.*inet \([^/]\+\)/[0-9]\+.*global.*#\1#gp')
+        grep -q '.' <<< "$DEFAULT_LOCAL_INTERFACE6" && local DEFAULT_LOCAL_IP6=$(ip -6 addr show $DEFAULT_LOCAL_INTERFACE6 | sed -n 's#.*inet6 \([^/]\+\)/[0-9]\+.*global.*#\1#gp')
+
+        if [ "$DOWNLOAD_TOOL" = "wget" ]; then
+          grep -q '.' <<< "$DEFAULT_LOCAL_IP4" && local BIND_ADDRESS4="--bind-address=$DEFAULT_LOCAL_IP4"
+          grep -q '.' <<< "$DEFAULT_LOCAL_IP6" && local BIND_ADDRESS6="--bind-address=$DEFAULT_LOCAL_IP6"
+        else
+          grep -q '.' <<< "$DEFAULT_LOCAL_IP4" && local BIND_ADDRESS4="--interface $DEFAULT_LOCAL_IP4"
+          grep -q '.' <<< "$DEFAULT_LOCAL_IP6" && local BIND_ADDRESS6="--interface $DEFAULT_LOCAL_IP6"
+        fi
+      fi
+    fi
+
+    # 尝试从 IP api 获取服务器 IP
+    if [ "$DOWNLOAD_TOOL" = "wget" ]; then
+      grep -q '.' <<< "$DEFAULT_LOCAL_IP4" && local SERVER_IPV4_DEFAULT=$(wget -qO- $BIND_ADDRESS4 --tries=2 --timeout=3 http://api-ipv4.ip.sb)
+      grep -q '.' <<< "$DEFAULT_LOCAL_IP6" && local SERVER_IPV6_DEFAULT=$(wget -qO- $BIND_ADDRESS6 --tries=2 --timeout=3 http://api-ipv6.ip.sb)
+    else
+      grep -q '.' <<< "$DEFAULT_LOCAL_IP4" && local SERVER_IPV4_DEFAULT=$(curl -s $BIND_ADDRESS4 --retry 2 --max-time 3  http://api-ipv4.ip.sb)
+      grep -q '.' <<< "$DEFAULT_LOCAL_IP6" && local SERVER_IPV6_DEFAULT=$(curl -s $BIND_ADDRESS6 --retry 2 --max-time 3 http://api-ipv6.ip.sb)
+    fi
+  fi
+
+  # 如果获取到 IPv4 和 IPv6，则提示用户选择
+  if grep -q '.' <<< "$SERVER_IPV4_DEFAULT" && grep -q '.' <<< "$SERVER_IPV6_DEFAULT"; then
+    reading "\n (1/4) $(text 78) " SERVER_INPUT
+    handle_ip_input "$SERVER_INPUT"
+  else
     reading "\n (1/4) $(text 12) " SERVER_INPUT
+    handle_ip_input "$SERVER_INPUT"
+  fi
+
+  while ! validate_ip_address  "$SERVER_INPUT"; do
+    if grep -q '.' <<< "$SERVER_IPV4_DEFAULT" && grep -q '.' <<< "$SERVER_IPV6_DEFAULT"; then
+      reading "\n (1/4) $(text 78) " SERVER_INPUT
+      handle_ip_input "$SERVER_INPUT"
+    else
+      reading "\n (1/4) $(text 12) " SERVER_INPUT
+      handle_ip_input "$SERVER_INPUT"
+    fi
   done
-  [[ "$SERVER_INPUT" = "localhost" || "$SERVER_INPUT" = "127.0.0.1" || "$SERVER_INPUT" = "::1" ]] && SERVER_IP="127.0.0.1" || SERVER_IP="$SERVER_INPUT"
 
   # 端口
   while true; do
@@ -874,14 +990,17 @@ install() {
   done
 
   # 如果是内网机器，用于穿透到公网服务端 IP 和 Port
-  if grep -q '127.0.0.1' <<< "$SERVER_IP"; then
+  if grep -q '127.0.0.1' <<< "$SERVER_INPUT"; then
     [ -z "$ARGS_REMOTE_SERVER_IP" ] && reading "\n $(text 68) " REMOTE_SERVER_INPUT
-    until grep -q '^$' <<< "$REMOTE_SERVER_INPUT" || validate_ip_address "$REMOTE_SERVER_INPUT"; do
+    REMOTE_SERVER_INPUT=$(sed 's/[][]//g' <<< "$REMOTE_SERVER_INPUT")
+    REMOTE_SERVER_INPUT=${REMOTE_SERVER_INPUT:-"127.0.0.1"}
+    until validate_ip_address "$REMOTE_SERVER_INPUT"; do
       reading "\n $(text 68) " REMOTE_SERVER_INPUT
+      REMOTE_SERVER_INPUT=$(sed 's/[][]//g' <<< "$REMOTE_SERVER_INPUT")
     done
 
     # 如果输入了公网 IP，则需要进一步输入端口和认证密码
-    if grep -q '.' <<< "$REMOTE_SERVER_INPUT"; then
+    if grep -q '.' <<< "$REMOTE_SERVER_INPUT" && ! grep -q '127\.0\.0\.1' <<< "$REMOTE_SERVER_INPUT"; then
       [ -z "$ARGS_REMOTE_PORT" ] && reading "\n $(text 69) " REMOTE_PORT_INPUT
       while ! check_port "$REMOTE_PORT_INPUT" "no_check_used"; do
         warning " $(text 41) "
@@ -895,16 +1014,20 @@ install() {
 
   # 判断远程服务器和 IPv6 地址，构建最终显示的 URL
   if [[ "$REMOTE_SERVER_INPUT" =~ ^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}$ ]]; then
+    CMD_SERVER_IP="127.0.0.1"
     URL_SERVER_IP="[$REMOTE_SERVER_INPUT]"
-    URL_SERVER_PORT="$REMOTE_PORT_INPUT"
+    grep -q '.' <<< "$REMOTE_PORT_INPUT" && URL_SERVER_PORT="$REMOTE_PORT_INPUT" || URL_SERVER_PORT="$PORT"
   elif [[ "$REMOTE_SERVER_INPUT" =~ ^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$ || "$REMOTE_SERVER_INPUT" =~ ^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$ ]]; then
+    CMD_SERVER_IP="127.0.0.1"
     URL_SERVER_IP="$REMOTE_SERVER_INPUT"
-    URL_SERVER_PORT="$REMOTE_PORT_INPUT"
+    grep -q '.' <<< "$REMOTE_PORT_INPUT" && URL_SERVER_PORT="$REMOTE_PORT_INPUT" || URL_SERVER_PORT="$PORT"
   elif [[ "$SERVER_INPUT" =~ ^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}$ ]]; then
-    SERVER_IP="[$SERVER_INPUT]"
-    URL_SERVER_IP="$SERVER_IP"
+    grep -q '127.0.0.1' <<< "$SERVER_IP" && CMD_SERVER_IP="127.0.0.1" || CMD_SERVER_IP=""
+    SERVER_IP="$SERVER_INPUT"
+    URL_SERVER_IP="[$SERVER_IP]"
     URL_SERVER_PORT="$PORT"
   elif [[ "$SERVER_INPUT" =~ ^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$ || "$SERVER_INPUT" =~ ^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$ ]]; then
+    grep -q '127.0.0.1' <<< "$SERVER_IP" && CMD_SERVER_IP="127.0.0.1" || CMD_SERVER_IP=""
     SERVER_IP="$SERVER_INPUT"
     URL_SERVER_IP="$SERVER_IP"
     URL_SERVER_PORT="$PORT"
@@ -990,19 +1113,18 @@ install() {
   # 获取最新版本
   get_latest_version
 
-  info " $(text 19) "
-
-  # 下载并解压
-  if [ "$DOWNLOAD_TOOL" = "wget" ]; then
-    wget "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${LATEST_VERSION}/nodepass_${VERSION_NUM}_linux_${ARCH}.tar.gz" -qO- | tar -xz -C "$TEMP_DIR"
-  else
-    curl -sL "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${LATEST_VERSION}/nodepass_${VERSION_NUM}_linux_${ARCH}.tar.gz" | tar -xz -C "$TEMP_DIR"
+  # 等待 NodePass 和 QRencode 下载完成
+  wait
+  if [[ -s "$TEMP_DIR/nodepass" && -s "$TEMP_DIR/qrencode" ]]; then
+    info " $(text 19) "
+  elif [ ! -f "$TEMP_DIR/nodepass" ]; then
+    local APP="NodePass" && error "\n $(text 9) "
+  elif [ ! -f "$TEMP_DIR/qrencode" ]; then
+    local APP="QRencode" && error "\n $(text 9) "
   fi
 
-  [ ! -f "$TEMP_DIR/nodepass" ] && error " $(text 9) "
-
   # 构建命令行
-  CMD="master://${SERVER_IP}:${PORT}/${PREFIX}?log=info&tls=${TLS_MODE}${CRT_PATH:-}"
+  CMD="master://${CMD_SERVER_IP}:${PORT}/${PREFIX}?log=info&tls=${TLS_MODE}${CRT_PATH:-}"
 
   # 移动到工作目录，保存语言选择和服务器IP信息到单个文件
   mkdir -p $WORK_DIR
@@ -1010,8 +1132,8 @@ install() {
   [[ "$IN_CONTAINER" = 1 || "$SERVICE_MANAGE" = "none" ]] && echo -e "CMD='$CMD'" >> $WORK_DIR/data
 
   # 移动NodePass可执行文件并设置权限
-  mv "$TEMP_DIR/nodepass" "$WORK_DIR/"
-  chmod +x "$WORK_DIR/nodepass"
+  mv $TEMP_DIR/{nodepass,qrencode} $WORK_DIR/
+  chmod +x $WORK_DIR/{nodepass,qrencode}
 
   # 创建服务文件
   create_service
@@ -1026,14 +1148,15 @@ install() {
     # 创建快捷方式
     create_shortcut
     get_api_key
+    get_uri
     info "\n $(text 10) "
 
     # 如是需要映射到公网的，则执行 api
     if grep -q '.' <<< "$REMOTE_SERVER_INPUT" && grep -q '.' <<< "$REMOTE_PORT_INPUT"; then
       # 执行 api
       if [ "$DOWNLOAD_TOOL" = "curl" ]; then
-        local CREATE_NEW_INSTANCE_ID=$(curl -sS -X 'POST' \
-          "http://127.0.0.1:${PORT}/${PREFIX}/v1/instances" \
+        local CREATE_NEW_INSTANCE_ID=$(curl -ksS -X 'POST' \
+          "${HTTP_S}://127.0.0.1:${PORT}/${PREFIX}/v1/instances" \
           -H 'accept: application/json' \
           -H "X-API-Key: ${KEY}" \
           -H 'Content-Type: application/json' \
@@ -1041,24 +1164,27 @@ install() {
             \"url\": \"client://${REMOTE_PASSWORD_INPUT}${URL_SERVER_IP}:${URL_SERVER_PORT}/127.0.0.1:${PORT}?log=error\"
           }" 2>&1 | sed 's/{"id":"\([0-9a-f]\{8\}\)".*/\1/')
       else
-        local CREATE_NEW_INSTANCE_ID=$(wget -qO- --method=POST \
+        local CREATE_NEW_INSTANCE_ID=$(wget --no-check-certificate -qO- --method=POST \
           --header="accept: application/json" \
           --header="X-API-Key: ${KEY}" \
           --header="Content-Type: application/json" \
           --body-data="{\"url\": \"client://${REMOTE_PASSWORD_INPUT}${URL_SERVER_IP}:${URL_SERVER_PORT}/127.0.0.1:${PORT}?log=error\"}" \
-          "http://127.0.0.1:${PORT}/${PREFIX}/v1/instances" 2>&1 | sed 's/{"id":"\([0-9a-f]\{8\}\)".*/\1/')
+          "${HTTP_S}://127.0.0.1:${PORT}/${PREFIX}/v1/instances" 2>&1 | sed 's/{"id":"\([0-9a-f]\{8\}\)".*/\1/')
       fi
 
-      [ "${#CREATE_NEW_INSTANCE_ID}" = 8 ] && info "\n $(text 72) \n" || warning "\n $(text 73) \n"
       grep -q '.' <<< "$REMOTE_SERVER_INPUT" && grep -q '.' <<< "$REMOTE_PORT_INPUT" && echo -e "REMOTE=${REMOTE_PASSWORD_INPUT}${URL_SERVER_IP}:${URL_SERVER_PORT}" >> $WORK_DIR/data
+
+      [ "${#CREATE_NEW_INSTANCE_ID}" = 8 ] && echo "INSTANCE_ID=${CREATE_NEW_INSTANCE_ID}" >> $WORK_DIR/data && info "\n $(text 72) \n" || warning "\n $(text 73) \n"
     fi
 
     # 输出安装信息
     echo "------------------------"
     info " $(text 60) $(text 34) "
     info " $(text 35) "
-    info " $(text 39) ${HTTP_S}://${URL_SERVER_IP}:${URL_SERVER_PORT}/${PREFIX}/v1"
+    info " $(text 39) ${HTTP_S}://${REMOTE_PASSWORD_INPUT}${URL_SERVER_IP}:${URL_SERVER_PORT}/${PREFIX}/v1"
     info " $(text 40) ${KEY}"
+    info " $(text 79) $URI"
+    ${WORK_DIR}/qrencode "$URI"
 
     echo "------------------------"
   else
@@ -1250,8 +1376,8 @@ change_api_server() {
   # 执行 api
   if [ "$DOWNLOAD_TOOL" = "curl" ]; then
     # 修改内网穿透实例内容
-    curl -sS -X 'PUT' \
-      "http://${SERVER_IP}:${PORT}/${PREFIX}/v1/instances/${INSTANCE_ID}" \
+    curl -ksS -X 'PUT' \
+      "${HTTP_S}://127.0.0.1:${PORT}/${PREFIX}/v1/instances/${INSTANCE_ID}" \
       -H 'accept: application/json' \
       -H "X-API-Key: ${KEY}" \
       -H 'Content-Type: application/json' \
@@ -1260,12 +1386,12 @@ change_api_server() {
       }" 2>&1
   else
     # 修改内网穿透实例内容
-    wget -qO- --method=PUT \
+    wget --no-check-certificate -qO- --method=PUT \
       --header="accept: application/json" \
       --header="X-API-Key: ${KEY}" \
       --header="Content-Type: application/json" \
       --body-data="{\"url\": \"client://${REMOTE_PASSWORD_INPUT}${REMOTE_SERVER_INPUT}:${REMOTE_PORT_INPUT}/127.0.0.1:${PORT}?log=error\"}" \
-      "http://${SERVER_IP}:${PORT}/${PREFIX}/v1/instances/${INSTANCE_ID}" 2>&1
+      "${HTTP_S}://127.0.0.1:${PORT}/${PREFIX}/v1/instances/${INSTANCE_ID}" 2>&1
   fi
 
   # 更新 data 文件
@@ -1297,15 +1423,15 @@ change_api_key() {
   [[ -z "$PORT" || -z "$PREFIX" || -z "$KEY" ]] && error " $(text 64) "
 
   if [ "$DOWNLOAD_TOOL" = "curl" ]; then
-    local RESPONSE=$(curl -s -X 'PATCH' \
-      "http://127.0.0.1:${PORT}/${PREFIX}/v1/instances/********" \
+    local RESPONSE=$(curl -ks -X 'PATCH' \
+      "${HTTP_S}://127.0.0.1:${PORT}/${PREFIX}/v1/instances/********" \
       -H "accept: application/json" \
       -H "X-API-Key: ${KEY}" \
       -H "Content-Type: application/json" \
       -d '{"action": "restart"}')
   elif [ "$DOWNLOAD_TOOL" = "wget" ]; then
-    local RESPONSE=$(wget -qO- --method=PATCH \
-      "http://127.0.0.1:${PORT}/${PREFIX}/v1/instances/********" \
+    local RESPONSE=$(wget --no-check-certificate -qO- --method=PATCH \
+      "${HTTP_S}://127.0.0.1:${PORT}/${PREFIX}/v1/instances/********" \
       --header='accept: application/json' \
       --header="X-API-Key: ${KEY}" \
       --header='Content-Type: application/json' \
@@ -1363,6 +1489,7 @@ menu_setting() {
   else
     get_api_key
     get_api_url
+    get_uri
     get_local_version
 
     # 已安装状态
@@ -1411,6 +1538,7 @@ menu() {
   grep -qEw '0|1' <<< "$INSTALL_STATUS" && info " $(text 60) $NODEPASS_STATUS "
   grep -q '.' <<< "$API_URL" && info " $(text 39) $API_URL"
   grep -q '.' <<< "$KEY" && info " $(text 40) $KEY"
+  grep -q '.' <<< "$URI" && [ -x "${WORK_DIR}/qrencode" ] && info " $(text 79) $URI"
 
   info " Version: $SCRIPT_VERSION $(text 1) "
   echo "------------------------"
@@ -1500,6 +1628,7 @@ main() {
 
         get_api_url output
         get_api_key output
+        get_uri output
       fi
       ;;
     -k)
