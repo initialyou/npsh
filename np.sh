@@ -207,8 +207,8 @@ check_system() {
   # 根据系统类型设置包管理和服务管理命令
   case "$SYSTEM" in
     alpine)
-      PACKAGE_INSTALL='apk add'
-      PACKAGE_UPDATE='apk update'
+      PACKAGE_INSTALL='apk add --no-cache'
+      PACKAGE_UPDATE='apk update -f'
       PACKAGE_UNINSTALL='apk del'
       SERVICE_START='rc-service nodepass start'
       SERVICE_STOP='rc-service nodepass stop'
@@ -344,6 +344,8 @@ check_dependencies() {
   elif [ -x "$(type -p wget)" ]; then
     DOWNLOAD_TOOL="wget"
     DOWNLOAD_CMD="wget -q"
+    # 如果是 Alpine，先升级 wget
+    'alpine' <<< "$SYSTEM" && grep -qi 'busybox' <<< "$(wget 2>&1 | head -n 1)" && apk add --no-cache wget >/dev/null 2>&1
   else
     # 如果都没有，安装 curl
     DEPS_INSTALL+=("curl")
@@ -408,11 +410,11 @@ check_system_info() {
 
   # 确定服务管理方式
   if [ -z "$SERVICE_MANAGE" ]; then
-    if [ -s /etc/systemd/system ]; then
-      SERVICE_MANAGE="systemctl"
-    elif [ -s /sbin/openrc-run ]; then
+    if [ -x "$(type -p systemctl)" ]; then
+      SERVICE_MANAGE="systemctl" 
+    elif [ -x "$(type -p openrc-run)" ]; then
       SERVICE_MANAGE="rc-service"
-    elif [ -s /etc/init.d ]; then
+    elif [[ -x "$(type -p service)" && -d /etc/init.d ]]; then
       SERVICE_MANAGE="init.d"
     else
       SERVICE_MANAGE="none"
@@ -904,10 +906,10 @@ install() {
 
   # 后台下载 NodePass 和 qrencode（60秒超时，重试2次）
   if [ "$DOWNLOAD_TOOL" = "wget" ]; then
-    { wget --timeout=60 --tries=2 "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${LATEST_VERSION}/nodepass_${VERSION_NUM}_linux_${ARCH}.tar.gz" -qO- | tar -xz -C "$TEMP_DIR" --wildcards 'nodepass'; } &
+    { wget --timeout=60 --tries=2 "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${LATEST_VERSION}/nodepass_${VERSION_NUM}_linux_${ARCH}.tar.gz" -qO- | tar -xz -C "$TEMP_DIR"; } &
     { wget --no-check-certificate --timeout=60 --tries=2 --continue -qO "$TEMP_DIR/qrencode" "https://${GH_PROXY}github.com/fscarmen/client_template/raw/main/qrencode-go/qrencode-go-linux-$ARCH" >/dev/null 2>&1 && chmod +x "$TEMP_DIR/qrencode" >/dev/null 2>&1; } &
   else
-    { curl --connect-timeout 60 --max-time 60 --retry 2 -sL "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${LATEST_VERSION}/nodepass_${VERSION_NUM}_linux_${ARCH}.tar.gz" | tar -xz -C "$TEMP_DIR" --wildcards 'nodepass'; } &
+    { curl --connect-timeout 60 --max-time 60 --retry 2 -sL "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${LATEST_VERSION}/nodepass_${VERSION_NUM}_linux_${ARCH}.tar.gz" | tar -xz -C "$TEMP_DIR"; } &
     { curl --connect-timeout 60 --max-time 60 --retry 2 -o "$TEMP_DIR/qrencode" "https://${GH_PROXY}github.com/fscarmen/client_template/raw/main/qrencode-go/qrencode-go-linux-$ARCH" >/dev/null 2>&1 && chmod +x "$TEMP_DIR/qrencode" >/dev/null 2>&1; } &
   fi
 
@@ -1117,6 +1119,8 @@ install() {
   wait
   if [[ -s "$TEMP_DIR/nodepass" && -s "$TEMP_DIR/qrencode" ]]; then
     info " $(text 19) "
+  elif [[ ! -f "$TEMP_DIR/nodepass" && ! -f "$TEMP_DIR/qrencode" ]]; then
+    local APP="NodePass, QRencode" && error "\n $(text 9) "
   elif [ ! -f "$TEMP_DIR/nodepass" ]; then
     local APP="NodePass" && error "\n $(text 9) "
   elif [ ! -f "$TEMP_DIR/qrencode" ]; then
