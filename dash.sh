@@ -474,9 +474,9 @@ else
 fi
 
 # 显示面板地址
-if [[ "$INPUT" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo -e "${GREEN}面板地址: http://$INPUT:$PORT${NC}"
-elif [[ "$INPUT" =~ ^[0-9a-fA-F:]+$ ]]; then
+if [[ "$INPUT" =~ ^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}$ ]]; then
+  echo -e "${GREEN}面板地址: http://[$INPUT]:$PORT${NC}"
+elif [[ "$INPUT" =~ ^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$ ]]; then
   echo -e "${GREEN}面板地址: http://$INPUT:$PORT${NC}"
 else
   echo -e "${GREEN}面板地址: https://$INPUT${NC}"
