@@ -177,6 +177,8 @@ E[78]="The external network of the current machine is dual-stack:\\\n 1. \${SERV
 C[78]="检测到本机的外网是双栈:\\\n 1. \${SERVER_IPV4_DEFAULT}，监听全栈 \(默认\)\\\n 2. \${SERVER_IPV6_DEFAULT}，监听全栈\\\n 3. 不对公网监听，只监听本地\\\n\\\n 请选择或者直接输入域名或 IP:"
 E[79]="URI:"
 C[79]="URI:"
+E[80]="The script runs today: \$TODAY. Total: \$TOTAL"
+C[80]="脚本当天运行次数: \$TODAY，累计运行次数: \$TOTAL"
 
 # 自定义字体彩色，read 函数
 warning() { echo -e "\033[31m\033[01m$*\033[0m"; }  # 红色
@@ -411,7 +413,7 @@ check_system_info() {
   # 确定服务管理方式
   if [ -z "$SERVICE_MANAGE" ]; then
     if [ -x "$(type -p systemctl)" ]; then
-      SERVICE_MANAGE="systemctl" 
+      SERVICE_MANAGE="systemctl"
     elif [ -x "$(type -p openrc-run)" ]; then
       SERVICE_MANAGE="rc-service"
     elif [[ -x "$(type -p service)" && -d /etc/init.d ]]; then
@@ -504,6 +506,18 @@ check_cdn() {
     else
       curl -ksIL --connect-timeout 3 --max-time 3 https://${GH_PROXY}raw.githubusercontent.com/yosebyte/nodepass/refs/heads/main/README.md &>/dev/null || unset GH_PROXY
     fi
+  fi
+}
+
+# 脚本当天及累计运行次数统计
+statistics_of_run-times() {
+  local UPDATE_OR_GET=$1
+  local SCRIPT=$2
+  if grep -q 'update' <<< "$UPDATE_OR_GET"; then
+    { wget --no-check-certificate -qO- --timeout=3 "http://stat.cloudflare.now.cc:4000/api/updateStats?script=${SCRIPT}" > $TEMP_DIR/statistics 2>/dev/null || true; }&
+  elif grep -q 'get' <<< "$UPDATE_OR_GET"; then
+    [ -s $TEMP_DIR/statistics ] && [[ $(cat $TEMP_DIR/statistics) =~ \"todayCount\":([0-9]+),\"totalCount\":([0-9]+) ]] && local TODAY="${BASH_REMATCH[1]}" && local TOTAL="${BASH_REMATCH[2]}" && rm -f $TEMP_DIR/statistics
+    info "\n*******************************************\n\n $(text 80) \n"
   fi
 }
 
@@ -1196,6 +1210,9 @@ install() {
   fi
 
   help
+
+  # 显示脚本使用情况数据
+  statistics_of_run-times get
 }
 
 create_service() {
@@ -1588,6 +1605,9 @@ main() {
 
   # 检查是否需要启用 Github CDN
   check_cdn
+
+  # 统计脚本当天及累计使用次数
+  statistics_of_run-times update np.sh
 
   # 检查安装状态
   check_install

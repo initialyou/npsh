@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 更新时间 2025-07-05
+# 更新时间 2025-07-21
 
 # 定义颜色
 GREEN='\033[0;32m'
@@ -26,6 +26,33 @@ show_help() {
   echo -e "  ${GREEN}./dash.sh uninstall${NC} # 卸载 NodePassDash"
   echo -e "  ${GREEN}./dash.sh help${NC}      # 显示帮助信息"
   exit 0
+}
+
+# 函数：检查并安装 curl 或 wget
+check_download_cmd() {
+  # 检查并安装 curl
+  if ! command -v curl &>/dev/null && ! command -v wget &>/dev/null; then
+    echo -e "${GREEN}curl 和 wget 都未安装，正在安装 curl...${NC}"
+    if [ "$OS" == "debian" ] || [ "$OS" == "ubuntu" ]; then
+      apt update >/dev/null 2>&1
+      apt install -y curl >/dev/null 2>&1
+    elif [ "$OS" == "centos" ]; then
+      yum install -y curl >/dev/null 2>&1
+    fi
+  fi
+
+  # 选择使用 wget 或 curl
+  if command -v wget &>/dev/null; then
+    DOWNLOAD_CMD="wget -qO-"
+  else
+    DOWNLOAD_CMD="curl -fsSL"
+  fi
+}
+
+# 函数：统计脚本运行次数
+statistics_of_run-times() {
+  local STATS=$($DOWNLOAD_CMD "http://stat.cloudflare.now.cc:4000/api/updateStats?script=dash.sh")
+  [[ "$STATS" =~ \"todayCount\":([0-9]+),\"totalCount\":([0-9]+) ]] && TODAY="${BASH_REMATCH[1]}" && TOTAL="${BASH_REMATCH[2]}"
 }
 
 # 函数：检查域名或IP地址格式
@@ -184,46 +211,6 @@ else
   CONTAINER_CMD="docker" # 设置为默认值，后续会安装
 fi
 
-# 检查参数
-case "$1" in
-"update")
-  # 如果容器管理工具不存在且未安装，尝试安装
-  if ! command -v $CONTAINER_CMD &>/dev/null; then
-    install_container_runtime
-  fi
-  update_nodepassdash
-  ;;
-"uninstall")
-  # 如果容器管理工具不存在且未安装，尝试安装
-  if ! command -v $CONTAINER_CMD &>/dev/null; then
-    install_container_runtime
-  fi
-  uninstall_nodepassdash
-  ;;
-"resetpwd")
-  # 如果容器管理工具不存在且未安装，尝试安装
-  if ! command -v $CONTAINER_CMD &>/dev/null; then
-    install_container_runtime
-  fi
-  reset_admin_password
-  ;;
-"install")
-  # 如果容器管理工具不存在且未安装，尝试安装
-  if ! command -v $CONTAINER_CMD &>/dev/null; then
-    install_container_runtime
-  fi
-  # 继续正常安装流程
-  ;;
-"help"|"")
-  show_help
-  ;;
-*)
-  echo -e "${RED}错误：未知参数 '$1'${NC}"
-  show_help
-  exit 1
-  ;;
-esac
-
 # 安装容器运行时的函数
 install_container_runtime() {
   echo -e "${GREEN}正在安装 Docker...${NC}"
@@ -243,24 +230,6 @@ install_container_runtime() {
   else
     echo -e "${RED}不支持的操作系统${NC}"
     exit 1
-  fi
-
-  # 检查并安装 curl
-  if ! command -v curl &>/dev/null && ! command -v wget &>/dev/null; then
-    echo -e "${GREEN}curl 和 wget 都未安装，正在安装 curl...${NC}"
-    if [ "$OS" == "debian" ] || [ "$OS" == "ubuntu" ]; then
-      apt update >/dev/null 2>&1
-      apt install -y curl >/dev/null 2>&1
-    elif [ "$OS" == "centos" ]; then
-      yum install -y curl >/dev/null 2>&1
-    fi
-  fi
-
-  # 选择使用 wget 或 curl
-  if command -v wget &>/dev/null; then
-    DOWNLOAD_CMD="wget -qO-"
-  else
-    DOWNLOAD_CMD="curl -fsSL"
   fi
 
   # 使用官方脚本安装 Docker
@@ -296,191 +265,241 @@ EOF
   echo -e "${GREEN}Docker 服务已重启。${NC}"
 }
 
-# 如果容器管理工具不存在且不是卸载操作，尝试安装
-if ! command -v $CONTAINER_CMD &>/dev/null && [[ "$1" != "uninstall" ]]; then
-  install_container_runtime
-fi
-
-# 配置容器管理工具的IPv6支持（如果使用Podman）
-if [ "$CONTAINER_CMD" == "podman" ]; then
-  # 检查并设置 Podman 的 IPv6 支持
-  PODMAN_CONFIG_DIR="$HOME/.config/containers"
-  mkdir -p "$PODMAN_CONFIG_DIR"
-  PODMAN_CONF="$PODMAN_CONFIG_DIR/containers.conf"
-
-  # 创建或更新 containers.conf 文件以启用 IPv6
-  if ! grep -q 'enable_ipv6' "$PODMAN_CONF" 2>/dev/null; then
-    echo -e "${GREEN}正在配置 Podman 以支持 IPv6...${NC}"
-    {
-      echo "[network]"
-      echo "enable_ipv6 = true"
-    } >>"$PODMAN_CONF"
-  else
-    echo -e "${GREEN}Podman 已配置为支持 IPv6。${NC}"
-  fi
-fi
-
-# 询问用户输入域名或IP地址
-while true; do
-  read -p "$(echo -e ${YELLOW}请输入域名或IPv4/IPv6地址（此项为必填）： ${NC})" INPUT
-  if validate_input "$INPUT"; then
-    echo -e "${GREEN}您输入的内容是: $INPUT${NC}"
-    break
-  else
-    echo -e "${RED}输入无效，请输入有效的域名或IPv4/IPv6地址。${NC}"
-  fi
-done
-
-# 询问用户使用的端口，默认是3000
-while true; do
-  read -p "$(echo -e ${YELLOW}请输入要使用的端口（默认3000）： ${NC})" PORT
-  PORT=${PORT:-3000} # 如果未输入，则使用默认值3000
-
-  # 验证端口
-  if ! validate_port "$PORT"; then
-    continue
+# 安装主程序
+install_nodepassdash() {
+  # 如果容器管理工具不存在且不是卸载操作，尝试安装
+  if ! command -v $CONTAINER_CMD &>/dev/null && [[ "$1" != "uninstall" ]]; then
+    install_container_runtime
   fi
 
-  # 检查端口是否被占用
-  if command -v lsof &>/dev/null; then
-    if lsof -i:$PORT &>/dev/null; then
-      echo -e "${RED}端口 $PORT 已被占用，请选择其他端口。${NC}"
-      continue
-    fi
-  elif command -v netstat &>/dev/null; then
-    if netstat -tuln | grep ":$PORT" &>/dev/null; then
-      echo -e "${RED}端口 $PORT 已被占用，请选择其他端口。${NC}"
-      continue
-    fi
-  elif command -v ss &>/dev/null; then
-    if ss -tuln | grep ":$PORT" &>/dev/null; then
-      echo -e "${RED}端口 $PORT 已被占用，请选择其他端口。${NC}"
-      continue
-    fi
-  else
-    echo -e "${GREEN}未检测到 lsof、netstat 或 ss，正在安装 iproute2...${NC}"
-    if [ "$OS" == "debian" ] || [ "$OS" == "ubuntu" ]; then
-      apt update >/dev/null 2>&1
-      apt install -y iproute2 >/dev/null 2>&1
-    elif [ "$OS" == "centos" ]; then
-      yum install -y iproute >/dev/null 2>&1
-    fi
-    echo -e "${GREEN}iproute2 安装完成，正在检查端口...${NC}"
-    if ss -tuln | grep ":$PORT" &>/dev/null; then
-      echo -e "${RED}端口 $PORT 已被占用，请选择其他端口。${NC}"
-      continue
-    fi
-  fi
-  break # 端口未被占用，退出循环
-done
+  # 配置容器管理工具的IPv6支持（如果使用Podman）
+  if [ "$CONTAINER_CMD" == "podman" ]; then
+    # 检查并设置 Podman 的 IPv6 支持
+    PODMAN_CONFIG_DIR="$HOME/.config/containers"
+    mkdir -p "$PODMAN_CONFIG_DIR"
+    PODMAN_CONF="$PODMAN_CONFIG_DIR/containers.conf"
 
-# 检测 Caddy 是否已安装
-if ! [[ "$INPUT" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && ! [[ "$INPUT" =~ ^[0-9a-fA-F:]+$ ]]; then
-  if ! command -v caddy &>/dev/null; then
-    echo -e "${GREEN}Caddy 未安装，正在安装...${NC}"
-    if [ "$OS" == "debian" ] || [ "$OS" == "ubuntu" ]; then
-      apt update >/dev/null 2>&1
-      apt install -y debian-keyring debian-archive-keyring >/dev/null 2>&1
-      $DOWNLOAD_CMD 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --yes --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-      $DOWNLOAD_CMD 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null 2>&1
-      apt update >/dev/null 2>&1
-      apt install -y caddy >/dev/null 2>&1
-    elif [ "$OS" == "centos" ]; then
-      dnf install 'dnf-command(copr)' >/dev/null 2>&1
-      dnf -y copr enable @caddy/caddy >/dev/null 2>&1
-      dnf install -y caddy >/dev/null 2>&1
-    fi
-
-    # 检查 Caddy 安装是否成功
-    if ! command -v caddy &>/dev/null; then
-      echo -e "${RED}Caddy 安装失败，请检查错误信息。${NC}"
-      exit 1
+    # 创建或更新 containers.conf 文件以启用 IPv6
+    if ! grep -q 'enable_ipv6' "$PODMAN_CONF" 2>/dev/null; then
+      echo -e "${GREEN}正在配置 Podman 以支持 IPv6...${NC}"
+      {
+        echo "[network]"
+        echo "enable_ipv6 = true"
+      } >>"$PODMAN_CONF"
     else
-      echo -e "${GREEN}Caddy 安装完成${NC}"
+      echo -e "${GREEN}Podman 已配置为支持 IPv6。${NC}"
     fi
-  else
-    echo -e "${GREEN}Caddy 已安装${NC}"
   fi
 
-  # 创建 Caddyfile
-  CADDYFILE="/etc/caddy/Caddyfile"
+  # 询问用户输入域名或IP地址
+  while true; do
+    read -p "$(echo -e ${YELLOW}请输入域名或IPv4/IPv6地址（此项为必填）： ${NC})" INPUT
+    if validate_input "$INPUT"; then
+      echo -e "${GREEN}您输入的内容是: $INPUT${NC}"
+      break
+    else
+      echo -e "${RED}输入无效，请输入有效的域名或IPv4/IPv6地址。${NC}"
+    fi
+  done
 
-  # 检查是否存在 Caddyfile，如果存在则备份
-  if [ -f $CADDYFILE ]; then
-    echo -e "${GREEN}检测到已有 Caddyfile，正在备份为 Caddyfile.bak...${NC}"
-    cp $CADDYFILE $CADDYFILE.bak
-    echo -e "${GREEN}备份完成。${NC}"
-  fi
+  # 询问用户使用的端口，默认是3000
+  while true; do
+    read -p "$(echo -e ${YELLOW}请输入要使用的端口（默认3000）： ${NC})" PORT
+    PORT=${PORT:-3000} # 如果未输入，则使用默认值3000
 
-  # 创建新的 Caddyfile
-  cat >$CADDYFILE <<EOF
-$INPUT {
-    reverse_proxy localhost:$PORT
-}
+    # 验证端口
+    if ! validate_port "$PORT"; then
+      continue
+    fi
+
+    # 检查端口是否被占用
+    if command -v lsof &>/dev/null; then
+      if lsof -i:$PORT &>/dev/null; then
+        echo -e "${RED}端口 $PORT 已被占用，请选择其他端口。${NC}"
+        continue
+      fi
+    elif command -v netstat &>/dev/null; then
+      if netstat -tuln | grep ":$PORT" &>/dev/null; then
+        echo -e "${RED}端口 $PORT 已被占用，请选择其他端口。${NC}"
+        continue
+      fi
+    elif command -v ss &>/dev/null; then
+      if ss -tuln | grep ":$PORT" &>/dev/null; then
+        echo -e "${RED}端口 $PORT 已被占用，请选择其他端口。${NC}"
+        continue
+      fi
+    else
+      echo -e "${GREEN}未检测到 lsof、netstat 或 ss，正在安装 iproute2...${NC}"
+      if [ "$OS" == "debian" ] || [ "$OS" == "ubuntu" ]; then
+        apt update >/dev/null 2>&1
+        apt install -y iproute2 >/dev/null 2>&1
+      elif [ "$OS" == "centos" ]; then
+        yum install -y iproute >/dev/null 2>&1
+      fi
+      echo -e "${GREEN}iproute2 安装完成，正在检查端口...${NC}"
+      if ss -tuln | grep ":$PORT" &>/dev/null; then
+        echo -e "${RED}端口 $PORT 已被占用，请选择其他端口。${NC}"
+        continue
+      fi
+    fi
+    break # 端口未被占用，退出循环
+  done
+
+  # 检测 Caddy 是否已安装
+  if ! [[ "$INPUT" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && ! [[ "$INPUT" =~ ^[0-9a-fA-F:]+$ ]]; then
+    if ! command -v caddy &>/dev/null; then
+      echo -e "${GREEN}Caddy 未安装，正在安装...${NC}"
+      if [ "$OS" == "debian" ] || [ "$OS" == "ubuntu" ]; then
+        apt update >/dev/null 2>&1
+        apt install -y debian-keyring debian-archive-keyring >/dev/null 2>&1
+        $DOWNLOAD_CMD 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --yes --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+        $DOWNLOAD_CMD 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null 2>&1
+        apt update >/dev/null 2>&1
+        apt install -y caddy >/dev/null 2>&1
+      elif [ "$OS" == "centos" ]; then
+        dnf install 'dnf-command(copr)' >/dev/null 2>&1
+        dnf -y copr enable @caddy/caddy >/dev/null 2>&1
+        dnf install -y caddy >/dev/null 2>&1
+      fi
+
+      # 检查 Caddy 安装是否成功
+      if ! command -v caddy &>/dev/null; then
+        echo -e "${RED}Caddy 安装失败，请检查错误信息。${NC}"
+        exit 1
+      else
+        echo -e "${GREEN}Caddy 安装完成${NC}"
+      fi
+    else
+      echo -e "${GREEN}Caddy 已安装${NC}"
+    fi
+
+    # 创建 Caddyfile
+    CADDYFILE="/etc/caddy/Caddyfile"
+
+    # 检查是否存在 Caddyfile，如果存在则备份
+    if [ -f $CADDYFILE ]; then
+      echo -e "${GREEN}检测到已有 Caddyfile，正在备份为 Caddyfile.bak...${NC}"
+      cp $CADDYFILE $CADDYFILE.bak
+      echo -e "${GREEN}备份完成。${NC}"
+    fi
+
+    # 创建新的 Caddyfile
+    cat >$CADDYFILE <<EOF
+  $INPUT {
+      reverse_proxy localhost:$PORT
+  }
 EOF
-  echo -e "${GREEN}Caddyfile 已创建，内容如下：${NC}"
-  cat $CADDYFILE
+    echo -e "${GREEN}Caddyfile 已创建，内容如下：${NC}"
+    cat $CADDYFILE
 
-  # 重启 Caddy 服务
-  echo -e "${GREEN}正在重启 Caddy 服务...${NC}"
-  systemctl restart caddy >/dev/null 2>&1
-  echo -e "${GREEN}Caddy 服务已重启。${NC}"
-fi
+    # 重启 Caddy 服务
+    echo -e "${GREEN}正在重启 Caddy 服务...${NC}"
+    systemctl restart caddy >/dev/null 2>&1
+    echo -e "${GREEN}Caddy 服务已重启。${NC}"
+  fi
 
-# 创建 nodepassdash 目录
-mkdir -p ~/nodepassdash/logs ~/nodepassdash/public
+  # 创建 nodepassdash 目录
+  mkdir -p ~/nodepassdash/logs ~/nodepassdash/public
 
-# 检查 nodepassdash 容器是否已存在
-if $CONTAINER_CMD inspect nodepassdash &>/dev/null; then
-  echo -e "${RED}nodepassdash 容器已存在，退出脚本。${NC}"
+  # 检查 nodepassdash 容器是否已存在
+  if $CONTAINER_CMD inspect nodepassdash &>/dev/null; then
+    echo -e "${RED}nodepassdash 容器已存在，退出脚本。${NC}"
+    exit 1
+  fi
+
+  # 下载最新的镜像并运行容器
+  echo -e "${GREEN}正在下载最新的 nodepassdash 镜像...${NC}"
+  $CONTAINER_CMD pull ghcr.io/nodepassproject/nodepassdash:latest
+
+  echo -e "${GREEN}正在运行 nodepassdash 容器...${NC}"
+  $CONTAINER_CMD run -d \
+    --name nodepassdash \
+    --restart always \
+    -p $PORT:3000 \
+    -v ~/nodepassdash/logs:/app/logs \
+    -v ~/nodepassdash/public:/app/public \
+    ghcr.io/nodepassproject/nodepassdash:latest
+
+  # 获取容器日志并提取管理员账户信息
+  echo -e "${GREEN}获取面板和管理员账户信息...${NC}"
+
+  # 定义日志检查命令
+  LOG_CHECK_COMMAND="$CONTAINER_CMD logs nodepassdash 2>&1"
+
+  # 等待直到出现管理员账户信息，最长不超过 60 秒
+  TIMEOUT=60
+  ELAPSED=0
+  INTERVAL=2
+
+  while [[ $ELAPSED -lt $TIMEOUT ]]; do
+    eval "$LOG_CHECK_COMMAND" | grep -q "管理员账户信息" && break
+    sleep $INTERVAL
+    ELAPSED=$((ELAPSED + INTERVAL))
+  done
+
+  if [[ $ELAPSED -ge $TIMEOUT ]]; then
+    echo -e "${RED}${TIMEOUT}秒还没能获取管理员账户信息，请检查容器日志：${NC}"
+    eval "$LOG_CHECK_COMMAND"
+  else
+    echo -e "${GREEN}管理员账户信息已成功获取。${NC}"
+  fi
+
+  # 显示面板地址
+  if [[ "$INPUT" =~ ^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}$ ]]; then
+    echo -e "${GREEN}面板地址: http://[$INPUT]:$PORT${NC}"
+  elif [[ "$INPUT" =~ ^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$ ]]; then
+    echo -e "${GREEN}面板地址: http://$INPUT:$PORT${NC}"
+  else
+    echo -e "${GREEN}面板地址: https://$INPUT${NC}"
+  fi
+
+  # 展示匹配到的内容
+  eval "$LOG_CHECK_COMMAND" | grep -A 5 "管理员账户信息"
+
+  # 脚本当天及累计运行次数统计
+  echo -e "${GREEN}脚本当天运行次数: $TODAY，累计运行次数: $TOTAL。${NC}"
+}
+
+check_download_cmd
+
+statistics_of_run-times
+
+# 检查参数
+case "$1" in
+"update")
+  # 如果容器管理工具不存在且未安装，尝试安装
+  if ! command -v $CONTAINER_CMD &>/dev/null; then
+    install_container_runtime
+  fi
+  update_nodepassdash
+  ;;
+"uninstall")
+  # 如果容器管理工具不存在且未安装，尝试安装
+  if ! command -v $CONTAINER_CMD &>/dev/null; then
+    install_container_runtime
+  fi
+  uninstall_nodepassdash
+  ;;
+"resetpwd")
+  # 如果容器管理工具不存在且未安装，尝试安装
+  if ! command -v $CONTAINER_CMD &>/dev/null; then
+    install_container_runtime
+  fi
+  reset_admin_password
+  ;;
+"install")
+  # 如果容器管理工具不存在且未安装，尝试安装
+  if ! command -v $CONTAINER_CMD &>/dev/null; then
+    install_container_runtime
+  fi
+  install_nodepassdash
+  ;;
+"help"|"")
+  show_help
+  ;;
+*)
+  echo -e "${RED}错误：未知参数 '$1'${NC}"
+  show_help
   exit 1
-fi
-
-# 下载最新的镜像并运行容器
-echo -e "${GREEN}正在下载最新的 nodepassdash 镜像...${NC}"
-$CONTAINER_CMD pull ghcr.io/nodepassproject/nodepassdash:latest
-
-echo -e "${GREEN}正在运行 nodepassdash 容器...${NC}"
-$CONTAINER_CMD run -d \
-  --name nodepassdash \
-  --restart always \
-  -p $PORT:3000 \
-  -v ~/nodepassdash/logs:/app/logs \
-  -v ~/nodepassdash/public:/app/public \
-  ghcr.io/nodepassproject/nodepassdash:latest
-
-# 获取容器日志并提取管理员账户信息
-echo -e "${GREEN}获取面板和管理员账户信息...${NC}"
-
-# 定义日志检查命令
-LOG_CHECK_COMMAND="$CONTAINER_CMD logs nodepassdash 2>&1"
-
-# 等待直到出现管理员账户信息，最长不超过 60 秒
-TIMEOUT=60
-ELAPSED=0
-INTERVAL=2
-
-while [[ $ELAPSED -lt $TIMEOUT ]]; do
-  eval "$LOG_CHECK_COMMAND" | grep -q "管理员账户信息" && break
-  sleep $INTERVAL
-  ELAPSED=$((ELAPSED + INTERVAL))
-done
-
-if [[ $ELAPSED -ge $TIMEOUT ]]; then
-  echo -e "${RED}${TIMEOUT}秒还没能获取管理员账户信息，请检查容器日志：${NC}"
-  eval "$LOG_CHECK_COMMAND"
-else
-  echo -e "${GREEN}管理员账户信息已成功获取。${NC}"
-fi
-
-# 显示面板地址
-if [[ "$INPUT" =~ ^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}$ ]]; then
-  echo -e "${GREEN}面板地址: http://[$INPUT]:$PORT${NC}"
-elif [[ "$INPUT" =~ ^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$ ]]; then
-  echo -e "${GREEN}面板地址: http://$INPUT:$PORT${NC}"
-else
-  echo -e "${GREEN}面板地址: https://$INPUT${NC}"
-fi
-
-# 展示匹配到的内容
-eval "$LOG_CHECK_COMMAND" | grep -A 5 "管理员账户信息"
+  ;;
+esac
