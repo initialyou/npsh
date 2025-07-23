@@ -347,7 +347,7 @@ check_dependencies() {
     DOWNLOAD_TOOL="wget"
     DOWNLOAD_CMD="wget -q"
     # 如果是 Alpine，先升级 wget
-    'alpine' <<< "$SYSTEM" && grep -qi 'busybox' <<< "$(wget 2>&1 | head -n 1)" && apk add --no-cache wget >/dev/null 2>&1
+    grep -qi 'alpine' <<< "$SYSTEM" && grep -qi 'busybox' <<< "$(wget 2>&1 | head -n 1)" && apk add --no-cache wget >/dev/null 2>&1
   else
     # 如果都没有，安装 curl
     DEPS_INSTALL+=("curl")
@@ -592,7 +592,6 @@ get_api_url() {
     fi
 
     # 优先查找是否有内网穿透的服务器
-    unset BASH_REMATCH
     if grep -q '.' <<< "$REMOTE"; then
       [[ $REMOTE =~ (.*@)?(.*):([0-9]+)$ ]]
       local URL_SERVER_PASSWORD="${BASH_REMATCH[1]}"
