@@ -179,6 +179,12 @@ E[79]="URI:"
 C[79]="URI:"
 E[80]="The script runs today: \$TODAY. Total: \$TOTAL"
 C[80]="脚本当天运行次数: \$TODAY，累计运行次数: \$TOTAL"
+E[81]="Please enter the port on the server that the local machine will connect to for the tunnel (1024–65535):"
+C[81]="请输入用于内网穿透中，本机连接到服务端的隧道端口（即服务端监听的端口）（1024–65535）:"
+E[82]="Running the service of intranet penetration on the server side:"
+C[82]="内网穿透的服务端运行:"
+E[83]="Failed to retrieve intranet penetration instance. Instance ID: \${INSTANCE\_ID}"
+C[83]="获取内网穿透实例失败，实例ID: \${INSTANCE_ID}"
 
 # 自定义字体彩色，read 函数
 warning() { echo -e "\033[31m\033[01m$*\033[0m"; }  # 红色
@@ -501,10 +507,10 @@ check_port() {
 # 检测是否需要启用 Github CDN，如能直接连通，则不使用
 check_cdn() {
   if [ -n "$GH_PROXY" ]; then
-    if [ "$DOWNLOAD_TOOL" = "wget" ]; then
-      wget --server-response --quiet --output-document=/dev/null --no-check-certificate --tries=2 --timeout=3 https://${GH_PROXY}raw.githubusercontent.com/yosebyte/nodepass/refs/heads/main/README.md &>/dev/null || unset GH_PROXY
-    else
+    if [ "$DOWNLOAD_TOOL" = "curl" ]; then
       curl -ksIL --connect-timeout 3 --max-time 3 https://${GH_PROXY}raw.githubusercontent.com/yosebyte/nodepass/refs/heads/main/README.md &>/dev/null || unset GH_PROXY
+    else
+      wget --server-response --quiet --output-document=/dev/null --no-check-certificate --tries=2 --timeout=3 https://${GH_PROXY}raw.githubusercontent.com/yosebyte/nodepass/refs/heads/main/README.md &>/dev/null || unset GH_PROXY
     fi
   fi
 }
@@ -596,7 +602,7 @@ get_api_url() {
       [[ $REMOTE =~ (.*@)?(.*):([0-9]+)$ ]]
       local URL_SERVER_PASSWORD="${BASH_REMATCH[1]}"
       local URL_SERVER_IP="${BASH_REMATCH[2]}"
-      local URL_SERVER_PORT="${BASH_REMATCH[3]}"
+      URL_SERVER_PORT="${BASH_REMATCH[3]}"
     else
       local URL_SERVER_PORT=$(sed -n 's#.*:\([0-9]\+\)\/.*#\1#p' <<< "$CMD_LINE")
       # 处理IPv6地址格式
@@ -619,6 +625,29 @@ get_api_key() {
     grep -q 'output' <<< "$1" && info " $(text 40) $KEY"
   else
     warning " $(text 59) "
+  fi
+}
+
+# 查询内网穿透的服务端命令行
+get_intranet_penetration_server_cmd() {
+  if [ "$DOWNLOAD_TOOL" = "curl" ]; then
+    local CLIENT_CMD=$(curl -sX 'GET' \
+      "http://127.0.0.1:${PORT}/api/v1/instances/${INSTANCE_ID}" \
+      -H 'accept: application/json' \
+      -H "X-API-Key: ${KEY}")
+  else
+    local CLIENT_CMD=$(wget --no-check-certificate -qO- --method=GET \
+      --header="accept: application/json" \
+      --header="X-API-Key: ${KEY}" \
+      "http://127.0.0.1:${PORT}/api/v1/instances/${INSTANCE_ID}")
+  fi
+
+  if grep -q '"url"' <<< "$CLIENT_CMD"; then
+    local TUNNEL_PORT_INPUT=$(sed "s#.*client.*:\([0-9]\+\)/.*#\1#" <<< "$CLIENT_CMD")
+    SERVER_CMD="server://:${TUNNEL_PORT_INPUT}/:${URL_SERVER_PORT}"
+    grep -q 'output' <<< "$1" && info " $(text 82) $SERVER_CMD"
+  else
+    warning " $(text 83) "
   fi
 }
 
@@ -650,10 +679,10 @@ get_local_version() {
 # 获取最新版本
 get_latest_version() {
   # 获取最新版本号
-  if [ "$DOWNLOAD_TOOL" = "wget" ]; then
-    LATEST_VERSION=$(wget -qO- "https://${GH_PROXY}api.github.com/repos/yosebyte/nodepass/releases/latest" | awk -F '"' '/tag_name/{print $4}')
-  else
+  if [ "$DOWNLOAD_TOOL" = "curl" ]; then
     LATEST_VERSION=$(curl -sL "https://${GH_PROXY}api.github.com/repos/yosebyte/nodepass/releases/latest" | awk -F '"' '/tag_name/{print $4}')
+  else
+    LATEST_VERSION=$(wget -qO- "https://${GH_PROXY}api.github.com/repos/yosebyte/nodepass/releases/latest" | awk -F '"' '/tag_name/{print $4}')
   fi
 
   if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" = "null" ]; then
@@ -802,10 +831,10 @@ upgrade_nodepass() {
   cp "$WORK_DIR/nodepass" "$WORK_DIR/nodepass.old"
 
   # 下载并解压新版本
-  if [ "$DOWNLOAD_TOOL" = "wget" ]; then
-    wget "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${LATEST_VERSION}/nodepass_${VERSION_NUM}_linux_${ARCH}.tar.gz" -qO- | tar -xz -C "$TEMP_DIR"
-  else
+  if [ "$DOWNLOAD_TOOL" = "curl" ]; then
     curl -sL "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${LATEST_VERSION}/nodepass_${VERSION_NUM}_linux_${ARCH}.tar.gz" | tar -xz -C "$TEMP_DIR"
+  else
+    wget "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${LATEST_VERSION}/nodepass_${VERSION_NUM}_linux_${ARCH}.tar.gz" -qO- | tar -xz -C "$TEMP_DIR"
   fi
 
   if [ ! -f "$TEMP_DIR/nodepass" ]; then
@@ -918,12 +947,12 @@ install() {
   }
 
   # 后台下载 NodePass 和 qrencode（60秒超时，重试2次）
-  if [ "$DOWNLOAD_TOOL" = "wget" ]; then
-    { wget --timeout=60 --tries=2 "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${LATEST_VERSION}/nodepass_${VERSION_NUM}_linux_${ARCH}.tar.gz" -qO- | tar -xz -C "$TEMP_DIR"; } &
-    { wget --no-check-certificate --timeout=60 --tries=2 --continue -qO "$TEMP_DIR/qrencode" "https://${GH_PROXY}github.com/fscarmen/client_template/raw/main/qrencode-go/qrencode-go-linux-$ARCH" >/dev/null 2>&1 && chmod +x "$TEMP_DIR/qrencode" >/dev/null 2>&1; } &
-  else
+  if [ "$DOWNLOAD_TOOL" = "curl" ]; then
     { curl --connect-timeout 60 --max-time 60 --retry 2 -sL "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${LATEST_VERSION}/nodepass_${VERSION_NUM}_linux_${ARCH}.tar.gz" | tar -xz -C "$TEMP_DIR"; } &
     { curl --connect-timeout 60 --max-time 60 --retry 2 -o "$TEMP_DIR/qrencode" "https://${GH_PROXY}github.com/fscarmen/client_template/raw/main/qrencode-go/qrencode-go-linux-$ARCH" >/dev/null 2>&1 && chmod +x "$TEMP_DIR/qrencode" >/dev/null 2>&1; } &
+  else
+    { wget --timeout=60 --tries=2 "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${LATEST_VERSION}/nodepass_${VERSION_NUM}_linux_${ARCH}.tar.gz" -qO- | tar -xz -C "$TEMP_DIR"; } &
+    { wget --no-check-certificate --timeout=60 --tries=2 --continue -qO "$TEMP_DIR/qrencode" "https://${GH_PROXY}github.com/fscarmen/client_template/raw/main/qrencode-go/qrencode-go-linux-$ARCH" >/dev/null 2>&1 && chmod +x "$TEMP_DIR/qrencode" >/dev/null 2>&1; } &
   fi
 
   # 服务器 IP
@@ -938,23 +967,23 @@ install() {
         grep -q '.' <<< "$DEFAULT_LOCAL_INTERFACE4" && local DEFAULT_LOCAL_IP4=$(ip -4 addr show $DEFAULT_LOCAL_INTERFACE4 | sed -n 's#.*inet \([^/]\+\)/[0-9]\+.*global.*#\1#gp')
         grep -q '.' <<< "$DEFAULT_LOCAL_INTERFACE6" && local DEFAULT_LOCAL_IP6=$(ip -6 addr show $DEFAULT_LOCAL_INTERFACE6 | sed -n 's#.*inet6 \([^/]\+\)/[0-9]\+.*global.*#\1#gp')
 
-        if [ "$DOWNLOAD_TOOL" = "wget" ]; then
-          grep -q '.' <<< "$DEFAULT_LOCAL_IP4" && local BIND_ADDRESS4="--bind-address=$DEFAULT_LOCAL_IP4"
-          grep -q '.' <<< "$DEFAULT_LOCAL_IP6" && local BIND_ADDRESS6="--bind-address=$DEFAULT_LOCAL_IP6"
-        else
+        if [ "$DOWNLOAD_TOOL" = "curl" ]; then
           grep -q '.' <<< "$DEFAULT_LOCAL_IP4" && local BIND_ADDRESS4="--interface $DEFAULT_LOCAL_IP4"
           grep -q '.' <<< "$DEFAULT_LOCAL_IP6" && local BIND_ADDRESS6="--interface $DEFAULT_LOCAL_IP6"
+        else
+          grep -q '.' <<< "$DEFAULT_LOCAL_IP4" && local BIND_ADDRESS4="--bind-address=$DEFAULT_LOCAL_IP4"
+          grep -q '.' <<< "$DEFAULT_LOCAL_IP6" && local BIND_ADDRESS6="--bind-address=$DEFAULT_LOCAL_IP6"
         fi
       fi
     fi
 
     # 尝试从 IP api 获取服务器 IP
-    if [ "$DOWNLOAD_TOOL" = "wget" ]; then
-      grep -q '.' <<< "$DEFAULT_LOCAL_IP4" && local SERVER_IPV4_DEFAULT=$(wget -qO- $BIND_ADDRESS4 --tries=2 --timeout=3 http://api-ipv4.ip.sb)
-      grep -q '.' <<< "$DEFAULT_LOCAL_IP6" && local SERVER_IPV6_DEFAULT=$(wget -qO- $BIND_ADDRESS6 --tries=2 --timeout=3 http://api-ipv6.ip.sb)
-    else
+    if [ "$DOWNLOAD_TOOL" = "curl" ]; then
       grep -q '.' <<< "$DEFAULT_LOCAL_IP4" && local SERVER_IPV4_DEFAULT=$(curl -s $BIND_ADDRESS4 --retry 2 --max-time 3  http://api-ipv4.ip.sb)
       grep -q '.' <<< "$DEFAULT_LOCAL_IP6" && local SERVER_IPV6_DEFAULT=$(curl -s $BIND_ADDRESS6 --retry 2 --max-time 3 http://api-ipv6.ip.sb)
+    else
+      grep -q '.' <<< "$DEFAULT_LOCAL_IP4" && local SERVER_IPV4_DEFAULT=$(wget -qO- $BIND_ADDRESS4 --tries=2 --timeout=3 http://api-ipv4.ip.sb)
+      grep -q '.' <<< "$DEFAULT_LOCAL_IP6" && local SERVER_IPV6_DEFAULT=$(wget -qO- $BIND_ADDRESS6 --tries=2 --timeout=3 http://api-ipv6.ip.sb)
     fi
   fi
 
@@ -1016,6 +1045,12 @@ install() {
 
     # 如果输入了公网 IP，则需要进一步输入端口和认证密码
     if grep -q '.' <<< "$REMOTE_SERVER_INPUT" && ! grep -q '127\.0\.0\.1' <<< "$REMOTE_SERVER_INPUT"; then
+      [ -z "$ARGS_TUNNEL_PORT" ] && reading "\n $(text 81) " TUNNEL_PORT_INPUT
+      while ! check_port "$TUNNEL_PORT_INPUT" "check_used"; do
+        warning " $(text 41) "
+        reading "\n $(text 81) " TUNNEL_PORT_INPUT
+      done
+
       [ -z "$ARGS_REMOTE_PORT" ] && reading "\n $(text 69) " REMOTE_PORT_INPUT
       while ! check_port "$REMOTE_PORT_INPUT" "no_check_used"; do
         warning " $(text 41) "
@@ -1178,20 +1213,20 @@ install() {
           -H "X-API-Key: ${KEY}" \
           -H 'Content-Type: application/json' \
           -d "{
-            \"url\": \"client://${REMOTE_PASSWORD_INPUT}${URL_SERVER_IP}:${URL_SERVER_PORT}/127.0.0.1:${PORT}?log=error\"
+            \"url\": \"client://${REMOTE_PASSWORD_INPUT}${URL_SERVER_IP}:${TUNNEL_PORT_INPUT}/127.0.0.1:${PORT}?log=error\"
           }" 2>&1 | sed 's/{"id":"\([0-9a-f]\{8\}\)".*/\1/')
       else
         local CREATE_NEW_INSTANCE_ID=$(wget --no-check-certificate -qO- --method=POST \
           --header="accept: application/json" \
           --header="X-API-Key: ${KEY}" \
           --header="Content-Type: application/json" \
-          --body-data="{\"url\": \"client://${REMOTE_PASSWORD_INPUT}${URL_SERVER_IP}:${URL_SERVER_PORT}/127.0.0.1:${PORT}?log=error\"}" \
+          --body-data="{\"url\": \"client://${REMOTE_PASSWORD_INPUT}${URL_SERVER_IP}:${TUNNEL_PORT_INPUT}/127.0.0.1:${PORT}?log=error\"}" \
           "${HTTP_S}://127.0.0.1:${PORT}/${PREFIX}/v1/instances" 2>&1 | sed 's/{"id":"\([0-9a-f]\{8\}\)".*/\1/')
       fi
 
       grep -q '.' <<< "$REMOTE_SERVER_INPUT" && grep -q '.' <<< "$REMOTE_PORT_INPUT" && echo -e "REMOTE=${REMOTE_PASSWORD_INPUT}${URL_SERVER_IP}:${URL_SERVER_PORT}" >> $WORK_DIR/data
 
-      [ "${#CREATE_NEW_INSTANCE_ID}" = 8 ] && echo "INSTANCE_ID=${CREATE_NEW_INSTANCE_ID}" >> $WORK_DIR/data && info "\n $(text 72) \n" || warning "\n $(text 73) \n"
+      [ "${#CREATE_NEW_INSTANCE_ID}" = 8 ] && echo -e "INSTANCE_ID=${CREATE_NEW_INSTANCE_ID}" >> $WORK_DIR/data && info "\n $(text 72) \n" || warning "\n $(text 73) \n"
     fi
 
     # 输出安装信息
@@ -1201,6 +1236,7 @@ install() {
     info " $(text 39) ${HTTP_S}://${REMOTE_PASSWORD_INPUT}${URL_SERVER_IP}:${URL_SERVER_PORT}/${PREFIX}/v1"
     info " $(text 40) ${KEY}"
     info " $(text 79) $URI"
+    grep -q '.' <<< "$TUNNEL_PORT_INPUT" && info " $(text 82) server://:${TUNNEL_PORT_INPUT}/:${REMOTE_PORT_INPUT}"
     ${WORK_DIR}/qrencode "$URI"
 
     echo "------------------------"
@@ -1326,10 +1362,10 @@ EOF
 create_shortcut() {
   # 根据下载工具构建下载命令
   local DOWNLOAD_COMMAND
-  if [ "$DOWNLOAD_TOOL" = "wget" ]; then
-    DOWNLOAD_COMMAND="wget --no-check-certificate -qO-"
-  else
+  if [ "$DOWNLOAD_TOOL" = "curl" ]; then
     DOWNLOAD_COMMAND="curl -ksSL"
+  else
+    DOWNLOAD_COMMAND="wget --no-check-certificate -qO-"
   fi
 
   # 创建快捷方式脚本
@@ -1373,7 +1409,7 @@ uninstall() {
 }
 
 # 更换 NodePass API 内网穿透的服务器
-change_api_server() {
+change_intranet_penetration_server() {
   reading "\n $(text 75) " REMOTE_SERVER_INPUT
   until validate_ip_address "$REMOTE_SERVER_INPUT"; do
     reading "\n $(text 75) " REMOTE_SERVER_INPUT
@@ -1383,6 +1419,12 @@ change_api_server() {
 
   # 如果输入了公网 IP，则需要进一步输入端口和认证密码
   if grep -q '.' <<< "$REMOTE_SERVER_INPUT"; then
+    reading "\n $(text 81) " TUNNEL_PORT_INPUT
+    while ! check_port "$TUNNEL_PORT_INPUT" "check_used"; do
+      warning " $(text 41) "
+      reading "\n $(text 81) " TUNNEL_PORT_INPUT
+    done
+
     reading "\n $(text 69) " REMOTE_PORT_INPUT
     while ! check_port "$REMOTE_PORT_INPUT" "no_check_used"; do
       warning " $(text 41) "
@@ -1402,24 +1444,26 @@ change_api_server() {
       -H "X-API-Key: ${KEY}" \
       -H 'Content-Type: application/json' \
       -d "{
-        \"url\": \"client://${REMOTE_PASSWORD_INPUT}${REMOTE_SERVER_INPUT}:${REMOTE_PORT_INPUT}/127.0.0.1:${PORT}?log=error\"
-      }" 2>&1
+        \"url\": \"client://${REMOTE_PASSWORD_INPUT}${REMOTE_SERVER_INPUT}:${TUNNEL_PORT_INPUT}/127.0.0.1:${PORT}?log=error\"
+      }" &>/dev/null
   else
     # 修改内网穿透实例内容
     wget --no-check-certificate -qO- --method=PUT \
       --header="accept: application/json" \
       --header="X-API-Key: ${KEY}" \
       --header="Content-Type: application/json" \
-      --body-data="{\"url\": \"client://${REMOTE_PASSWORD_INPUT}${REMOTE_SERVER_INPUT}:${REMOTE_PORT_INPUT}/127.0.0.1:${PORT}?log=error\"}" \
-      "${HTTP_S}://127.0.0.1:${PORT}/${PREFIX}/v1/instances/${INSTANCE_ID}" 2>&1
+      --body-data="{\"url\": \"client://${REMOTE_PASSWORD_INPUT}${REMOTE_SERVER_INPUT}:${TUNNEL_PORT_INPUT}/127.0.0.1:${PORT}?log=error\"}" \
+      "${HTTP_S}://127.0.0.1:${PORT}/${PREFIX}/v1/instances/${INSTANCE_ID}" &>/dev/null
   fi
 
   # 更新 data 文件
   if [ "$?" = 0 ]; then
     sed -i "s/^REMOTE=.*/REMOTE=${REMOTE_PASSWORD_INPUT}${REMOTE_SERVER_INPUT}:${REMOTE_PORT_INPUT}/" $WORK_DIR/data
+    local SERVER_CMD="server://:${TUNNEL_PORT_INPUT}/:${REMOTE_PORT_INPUT}"
     info "\n $(text 76) \n"
+    info " $(text 82) $SERVER_CMD"
   else
-    warning "\n $(text 77) \n"
+    error "\n $(text 77) \n"
   fi
 }
 
@@ -1449,15 +1493,13 @@ change_api_key() {
       -H "X-API-Key: ${KEY}" \
       -H "Content-Type: application/json" \
       -d '{"action": "restart"}')
-  elif [ "$DOWNLOAD_TOOL" = "wget" ]; then
+  else
     local RESPONSE=$(wget --no-check-certificate -qO- --method=PATCH \
       "${HTTP_S}://127.0.0.1:${PORT}/${PREFIX}/v1/instances/********" \
       --header='accept: application/json' \
       --header="X-API-Key: ${KEY}" \
       --header='Content-Type: application/json' \
       --body-data='{"action":"restart"}')
-  else
-    error " $(text 64) "
   fi
 
   # 从响应中提取新的 KEY
@@ -1511,6 +1553,7 @@ menu_setting() {
     get_api_url
     get_uri
     get_local_version
+    grep -q '.' <<< "$REMOTE" && get_intranet_penetration_server_cmd
 
     # 已安装状态
     if [ $INSTALL_STATUS -eq 0 ]; then
@@ -1534,7 +1577,7 @@ menu_setting() {
       ACTION[2]() { change_api_key; exit 0; }
       ACTION[3]() { upgrade_nodepass; exit 0; }
       ACTION[4]() { uninstall; exit 0; }
-      grep -q '.' <<< "$REMOTE" && ACTION[5]() { change_api_server; exit 0; }
+      grep -q '.' <<< "$REMOTE" && ACTION[5]() { change_intranet_penetration_server; exit 0; }
       ACTION[0]() { exit 0; }
   fi
 }
@@ -1558,6 +1601,7 @@ menu() {
   grep -qEw '0|1' <<< "$INSTALL_STATUS" && info " $(text 60) $NODEPASS_STATUS "
   grep -q '.' <<< "$API_URL" && info " $(text 39) $API_URL"
   grep -q '.' <<< "$KEY" && info " $(text 40) $KEY"
+  grep -q '.' <<< "$SERVER_CMD" && info " $(text 82) $SERVER_CMD"
   grep -q '.' <<< "$URI" && [ -x "${WORK_DIR}/qrencode" ] && info " $(text 79) $URI"
 
   info " Version: $SCRIPT_VERSION $(text 1) "
@@ -1651,6 +1695,7 @@ main() {
 
         get_api_url output
         get_api_key output
+        grep -q '.' <<< "$REMOTE" && get_intranet_penetration_server_cmd output
         get_uri output
       fi
       ;;
@@ -1663,7 +1708,7 @@ main() {
       if [ "$INSTALL_STATUS" != 2 ]; then
         get_api_url
         get_api_key
-        change_api_server
+        change_intranet_penetration_server
       else
         warning " ${E[59]}\n ${C[59]} "
       fi

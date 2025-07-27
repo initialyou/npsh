@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 更新时间 2025-07-21
+# 更新时间 2025-07-27
 
 # 定义颜色
 GREEN='\033[0;32m'
@@ -414,10 +414,11 @@ EOF
   echo -e "${GREEN}正在运行 nodepassdash 容器...${NC}"
   $CONTAINER_CMD run -d \
     --name nodepassdash \
+    --network host \
     --restart always \
-    -p $PORT:3000 \
     -v ~/nodepassdash/logs:/app/logs \
     -v ~/nodepassdash/public:/app/public \
+    -e PORT=$PORT \
     ghcr.io/nodepassproject/nodepassdash:latest
 
   # 获取容器日志并提取管理员账户信息

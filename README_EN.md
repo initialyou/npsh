@@ -50,6 +50,7 @@
 - ✅ Multi-system support
 - 🌐 Bilingual interface (Chinese/English)
 - 🔍 Automatic detection of architecture and dependencies
+- 🌍 Host network mode is used, enabling seamless integration with host APIs
 - 🔧 Flexible configuration of ports, API prefixes, and TLS modes
 - 🔐 Supports no encryption, self-signed certificates, or custom certificates
 - 🛠️ One-click service start, stop, restart, and uninstall
