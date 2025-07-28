@@ -51,7 +51,7 @@ check_download_cmd() {
 
 # 函数：统计脚本运行次数
 statistics_of_run-times() {
-  local STATS=$($DOWNLOAD_CMD "http://stat.cloudflare.now.cc:4000/api/updateStats?script=dash.sh")
+  local STATS=$($DOWNLOAD_CMD "https://stat.cloudflare.now.cc/api/updateStats?script=dash.sh")
   [[ "$STATS" =~ \"todayCount\":([0-9]+),\"totalCount\":([0-9]+) ]] && TODAY="${BASH_REMATCH[1]}" && TOTAL="${BASH_REMATCH[2]}"
 }
 
