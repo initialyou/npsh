@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 更新时间 2025-07-27
+# 更新时间 2025-07-28
 
 # 定义颜色
 GREEN='\033[0;32m'
@@ -55,6 +55,21 @@ statistics_of_run-times() {
   [[ "$STATS" =~ \"todayCount\":([0-9]+),\"totalCount\":([0-9]+) ]] && TODAY="${BASH_REMATCH[1]}" && TOTAL="${BASH_REMATCH[2]}"
 }
 
+# 函数：检测操作系统类型
+check_os() {
+  # 检测操作系统类型
+  if [ -f /etc/debian_version ]; then
+    OS="debian"
+  elif [ -f /etc/lsb-release ]; then
+    OS="ubuntu"
+  elif [ -f /etc/redhat-release ]; then
+    OS="centos"
+  else
+    echo -e "${RED}不支持的操作系统${NC}"
+    exit 1
+  fi
+}
+
 # 函数：检查域名或IP地址格式
 validate_input() {
   local input=$1
@@ -75,10 +90,20 @@ validate_input() {
 # 函数：检查端口是否在有效范围内
 validate_port() {
   local port=$1
+
   if ! [[ "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
     echo -e "${RED}错误：端口号 $port 无效。请提供一个在 1 到 65535 之间的端口号。${NC}"
     return 1
   fi
+
+  # 如果需要检查 Caddy 端口冲突（当 TLS_MODE 不为 2 时）
+  if [ "$TLS_MODE" != "2" ]; then
+    if [ "$port" == "80" ] || [ "$port" == "443" ] || [ "$port" == "2019" ]; then
+      echo -e "${RED}错误：端口 $port 会被 Caddy 占用，请选择其他端口。${NC}"
+      return 1
+    fi
+  fi
+
   return 0
 }
 
@@ -214,22 +239,14 @@ fi
 # 安装容器运行时的函数
 install_container_runtime() {
   echo -e "${GREEN}正在安装 Docker...${NC}"
-  # 检测系统类型
-  if [ -f /etc/debian_version ]; then
-    OS="debian"
-  elif [ -f /etc/lsb-release ]; then
-    OS="ubuntu"
-  elif [ -f /etc/redhat-release ]; then
-    OS="centos"
+  # 检测不能安装容器的旧操作系统
+  if [ "$OS" = "centos" ]; then
     # 检查 CentOS 版本
     CENTOS_VERSION=$(rpm -E '%{rhel}')
     if [ "$CENTOS_VERSION" -lt 8 ]; then
       echo -e "${RED}错误：您的 CentOS 版本 $CENTOS_VERSION 过低。请使用 CentOS 8 或 9 版本。${NC}"
       exit 1
     fi
-  else
-    echo -e "${RED}不支持的操作系统${NC}"
-    exit 1
   fi
 
   # 使用官方脚本安装 Docker
@@ -302,13 +319,87 @@ install_nodepassdash() {
     fi
   done
 
+  # 检测 Caddy 是否已安装
+  if ! [[ "$INPUT" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && ! [[ "$INPUT" =~ ^[0-9a-fA-F:]+$ ]]; then
+    # 询问用户选择 TLS 证书模式
+    echo -e "${YELLOW}请选择 TLS 证书模式 (默认 1):${NC}"
+    echo -e "${GREEN} 1. 使用 Caddy 自动申请证书 (默认)\n 2. 自定义 TLS 证书文件路径${NC}"
+    read -p "$(echo -e ${YELLOW}请选择：${NC})" TLS_MODE
+    TLS_MODE=${TLS_MODE:-1} # 默认为1
+
+    if [ "$TLS_MODE" = "2" ]; then
+      # 处理证书文件
+      while true; do
+        read -p "$(echo -e ${YELLOW}请输入您的 TLS 证书文件路径:${NC}) " CERT_FILE
+        if [ -f "$CERT_FILE" ]; then
+          break
+        else
+          echo -e "${RED}证书文件不存在: $CERT_FILE${NC}"
+        fi
+      done
+
+      # 处理私钥文件
+      while true; do
+        read -p "$(echo -e ${YELLOW}请输入您的 TLS 私钥文件路径:${NC}) " KEY_FILE
+        if [ -f "$KEY_FILE" ]; then
+          break
+        else
+          echo -e "${RED}私钥文件不存在: $KEY_FILE${NC}"
+        fi
+      done
+
+      echo -e "${GREEN}使用自定义 TLS 证书${NC}"
+    fi
+
+    # 如果 TLS 模式不是 2，则使用 Caddy 自动申请证书
+    if [ "$TLS_MODE" != "2" ]; then
+      if ! command -v caddy &>/dev/null; then
+        echo -e "${GREEN}Caddy 未安装，正在安装...${NC}"
+        if [ "$OS" == "debian" ] || [ "$OS" == "ubuntu" ]; then
+          apt update >/dev/null 2>&1
+          apt install -y debian-keyring debian-archive-keyring >/dev/null 2>&1
+          $DOWNLOAD_CMD 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --yes --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+          $DOWNLOAD_CMD 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null 2>&1
+          apt update >/dev/null 2>&1
+          apt install -y caddy >/dev/null 2>&1
+        elif [ "$OS" == "centos" ]; then
+          dnf install 'dnf-command(copr)' >/dev/null 2>&1
+          dnf -y copr enable @caddy/caddy >/dev/null 2>&1
+          dnf install -y caddy >/dev/null 2>&1
+        fi
+
+        # 检查 Caddy 安装是否成功
+        if ! command -v caddy &>/dev/null; then
+          echo -e "${RED}Caddy 安装失败，请检查错误信息。${NC}"
+          exit 1
+        else
+          echo -e "${GREEN}Caddy 安装完成${NC}"
+        fi
+      else
+        echo -e "${GREEN}Caddy 已安装${NC}"
+      fi
+
+      # 使用 Caddy 自动申请证书
+      cat >>/etc/caddy/Caddyfile <<EOF
+
+$INPUT {
+    reverse_proxy localhost:$PORT
+}
+EOF
+
+      # 重置 Caddy 配置
+      caddy reload --config /etc/caddy/Caddyfile &>/dev/null
+      [ "$?" = 0 ] && echo -e "${GREEN}$INPUT 的 Caddy 反代已生效${NC}"
+    fi
+  fi
+
   # 询问用户使用的端口，默认是3000
   while true; do
     read -p "$(echo -e ${YELLOW}请输入要使用的端口（默认3000）： ${NC})" PORT
     PORT=${PORT:-3000} # 如果未输入，则使用默认值3000
 
     # 验证端口
-    if ! validate_port "$PORT"; then
+    if ! validate_port "$PORT" "$TLS_MODE"; then
       continue
     fi
 
@@ -345,59 +436,6 @@ install_nodepassdash() {
     break # 端口未被占用，退出循环
   done
 
-  # 检测 Caddy 是否已安装
-  if ! [[ "$INPUT" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && ! [[ "$INPUT" =~ ^[0-9a-fA-F:]+$ ]]; then
-    if ! command -v caddy &>/dev/null; then
-      echo -e "${GREEN}Caddy 未安装，正在安装...${NC}"
-      if [ "$OS" == "debian" ] || [ "$OS" == "ubuntu" ]; then
-        apt update >/dev/null 2>&1
-        apt install -y debian-keyring debian-archive-keyring >/dev/null 2>&1
-        $DOWNLOAD_CMD 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --yes --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-        $DOWNLOAD_CMD 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null 2>&1
-        apt update >/dev/null 2>&1
-        apt install -y caddy >/dev/null 2>&1
-      elif [ "$OS" == "centos" ]; then
-        dnf install 'dnf-command(copr)' >/dev/null 2>&1
-        dnf -y copr enable @caddy/caddy >/dev/null 2>&1
-        dnf install -y caddy >/dev/null 2>&1
-      fi
-
-      # 检查 Caddy 安装是否成功
-      if ! command -v caddy &>/dev/null; then
-        echo -e "${RED}Caddy 安装失败，请检查错误信息。${NC}"
-        exit 1
-      else
-        echo -e "${GREEN}Caddy 安装完成${NC}"
-      fi
-    else
-      echo -e "${GREEN}Caddy 已安装${NC}"
-    fi
-
-    # 创建 Caddyfile
-    CADDYFILE="/etc/caddy/Caddyfile"
-
-    # 检查是否存在 Caddyfile，如果存在则备份
-    if [ -f $CADDYFILE ]; then
-      echo -e "${GREEN}检测到已有 Caddyfile，正在备份为 Caddyfile.bak...${NC}"
-      cp $CADDYFILE $CADDYFILE.bak
-      echo -e "${GREEN}备份完成。${NC}"
-    fi
-
-    # 创建新的 Caddyfile
-    cat >$CADDYFILE <<EOF
-  $INPUT {
-      reverse_proxy localhost:$PORT
-  }
-EOF
-    echo -e "${GREEN}Caddyfile 已创建，内容如下：${NC}"
-    cat $CADDYFILE
-
-    # 重启 Caddy 服务
-    echo -e "${GREEN}正在重启 Caddy 服务...${NC}"
-    systemctl restart caddy >/dev/null 2>&1
-    echo -e "${GREEN}Caddy 服务已重启。${NC}"
-  fi
-
   # 创建 nodepassdash 目录
   mkdir -p ~/nodepassdash/logs ~/nodepassdash/public
 
@@ -412,14 +450,31 @@ EOF
   $CONTAINER_CMD pull ghcr.io/nodepassproject/nodepassdash:latest
 
   echo -e "${GREEN}正在运行 nodepassdash 容器...${NC}"
-  $CONTAINER_CMD run -d \
+
+  # 构建容器运行命令
+  CONTAINER_RUN_CMD="$CONTAINER_CMD run -d \
     --name nodepassdash \
     --network host \
     --restart always \
     -v ~/nodepassdash/logs:/app/logs \
     -v ~/nodepassdash/public:/app/public \
-    -e PORT=$PORT \
-    ghcr.io/nodepassproject/nodepassdash:latest
+    -e PORT=$PORT"
+
+  # 如果使用自定义证书，添加证书文件挂载和环境变量
+  if [ "$TLS_MODE" = "2" ]; then
+    CONTAINER_RUN_CMD="$CONTAINER_RUN_CMD \
+    -v $CERT_FILE:/app/certs/$(basename $CERT_FILE):ro \
+    -v $KEY_FILE:/app/certs/$(basename $KEY_FILE):ro \
+    -e TLS_CERT=/app/certs/$(basename $CERT_FILE) \
+    -e TLS_KEY=/app/certs/$(basename $KEY_FILE)"
+  fi
+
+  # 完成容器运行命令
+  CONTAINER_RUN_CMD="$CONTAINER_RUN_CMD \
+    ghcr.io/nodepassproject/nodepassdash:latest"
+
+  # 执行容器运行命令
+  eval $CONTAINER_RUN_CMD
 
   # 获取容器日志并提取管理员账户信息
   echo -e "${GREEN}获取面板和管理员账户信息...${NC}"
@@ -451,15 +506,17 @@ EOF
   elif [[ "$INPUT" =~ ^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$ ]]; then
     echo -e "${GREEN}面板地址: http://$INPUT:$PORT${NC}"
   else
-    echo -e "${GREEN}面板地址: https://$INPUT${NC}"
+    [ "$TLS_MODE" = "2" ] && echo -e "${GREEN}面板地址: https://$INPUT:$PORT${NC}" || echo -e "${GREEN}面板地址: https://$INPUT${NC}"
   fi
 
   # 展示匹配到的内容
   eval "$LOG_CHECK_COMMAND" | grep -A 5 "管理员账户信息"
 
   # 脚本当天及累计运行次数统计
-  echo -e "${GREEN}脚本当天运行次数: $TODAY，累计运行次数: $TOTAL。${NC}"
+  echo -e "${GREEN}脚本当天运行次数: $TODAY，累计运行次数: $TOTAL${NC}"
 }
+
+check_os
 
 check_download_cmd
 
