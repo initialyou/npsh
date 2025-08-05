@@ -1215,6 +1215,10 @@ install() {
           -d "{
             \"url\": \"client://${REMOTE_PASSWORD_INPUT}${URL_SERVER_IP}:${TUNNEL_PORT_INPUT}/127.0.0.1:${PORT}?log=error\"
           }" 2>&1 | sed 's/{"id":"\([0-9a-f]\{8\}\)".*/\1/')
+
+        grep -q "^[0-9a-f]\{8\}$" <<< "${CREATE_NEW_INSTANCE_ID}" && curl -X 'PATCH' "http://127.0.0.1:${PORT}/${PREFIX}/v1/instances/${CREATE_NEW_INSTANCE_ID}" \
+          -H "X-API-KEY: ${KEY}" \
+          -d '{ "restart": true }' >/dev/null 2>&1
       else
         local CREATE_NEW_INSTANCE_ID=$(wget --no-check-certificate -qO- --method=POST \
           --header="accept: application/json" \
@@ -1222,6 +1226,11 @@ install() {
           --header="Content-Type: application/json" \
           --body-data="{\"url\": \"client://${REMOTE_PASSWORD_INPUT}${URL_SERVER_IP}:${TUNNEL_PORT_INPUT}/127.0.0.1:${PORT}?log=error\"}" \
           "${HTTP_S}://127.0.0.1:${PORT}/${PREFIX}/v1/instances" 2>&1 | sed 's/{"id":"\([0-9a-f]\{8\}\)".*/\1/')
+
+        grep -q "^[0-9a-f]\{8\}$" <<< "${CREATE_NEW_INSTANCE_ID}" && wget --no-check-certificate --method=PATCH \
+        --header="X-API-KEY: ${KEY}" \
+        --body-data='{ "restart": true }' \
+        "http://127.0.0.1:${PORT}/${PREFIX}/v1/instances/${CREATE_NEW_INSTANCE_ID}" >/dev/null 2>&1
       fi
 
       grep -q '.' <<< "$REMOTE_SERVER_INPUT" && grep -q '.' <<< "$REMOTE_PORT_INPUT" && echo -e "REMOTE=${REMOTE_PASSWORD_INPUT}${URL_SERVER_IP}:${URL_SERVER_PORT}" >> $WORK_DIR/data
