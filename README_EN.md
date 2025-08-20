@@ -56,6 +56,7 @@
 - 🛠️ One-click service start, stop, restart, and uninstall
 - 🔄 Automatic updates to the latest version
 - 🐳 Automatic recognition of container environments
+- 📦 Support installation of stable or development versions
 
 ---
 
@@ -93,7 +94,8 @@ bash <(curl -sSL https://run.nodepass.eu/np.sh) \
   --server_ip 127.0.0.1 \
   --user_port 18080 \
   --prefix api \
-  --tls_mode 0
+  --tls_mode 0 \
+  --version stable
 ```
 
 </details>
@@ -108,7 +110,8 @@ bash <(curl -sSL https://run.nodepass.eu/np.sh) \
   --server_ip localhost \
   --user_port 18080 \
   --prefix api \
-  --tls_mode 1
+  --tls_mode 1 \
+  --version dev
 ```
 
 </details>
@@ -124,6 +127,7 @@ bash <(curl -sSL https://run.nodepass.eu/np.sh) \
   --user_port 18080 \
   --prefix api \
   --tls_mode 2 \
+  --version stable \
   --cert_file </path/to/cert.pem> \
   --key_file </path/to/key.pem>
 ```
@@ -142,6 +146,7 @@ After installation, the `np` shortcut command is created:
 | `np -i`   | Install NodePass             |
 | `np -u`   | Uninstall NodePass           |
 | `np -v`   | Upgrade NodePass             |
+| `np -t`   | Switch between stable and development versions |
 | `np -o`   | Start/stop service           |
 | `np -k`   | Change API key               |
 | `np -k`   | Change API intranet penetration server |
@@ -239,11 +244,11 @@ This will update based on the local and remote versions.
 
 ### Reset Password
 
-```bash
+```
 bash <(wget -qO- https://run.nodepass.eu/dash.sh) resetpwd
 ```
 or
-```bash
+```
 bash <(curl -sSL https://run.nodepass.eu/dash.sh) resetpwd
 ```
 

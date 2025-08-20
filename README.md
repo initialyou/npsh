@@ -60,6 +60,7 @@
 * 🛠️ 支持服务一键启动、停止、重启、卸载
 * 🔄 自动更新保持最新版本
 * 🐳 自动识别容器环境
+* 📦 支持安装稳定版或开发版
 
 ---
 
@@ -96,7 +97,8 @@ bash <(curl -sSL https://run.nodepass.eu/np.sh) \
   --server_ip 127.0.0.1 \
   --user_port 18080 \
   --prefix api \
-  --tls_mode 0
+  --tls_mode 0 \
+  --version stable
 ```
 
 </details>
@@ -110,7 +112,8 @@ bash <(curl -sSL https://run.nodepass.eu/np.sh) \
   --server_ip localhost \
   --user_port 18080 \
   --prefix api \
-  --tls_mode 1
+  --tls_mode 1 \
+  --version dev
 ```
 
 </details>
@@ -125,6 +128,7 @@ bash <(curl -sSL https://run.nodepass.eu/np.sh) \
   --user_port 18080 \
   --prefix api \
   --tls_mode 2 \
+  --version stable \
   --cert_file </path/to/cert.pem> \
   --key_file </path/to/key.pem>
 ```
@@ -143,6 +147,7 @@ bash <(curl -sSL https://run.nodepass.eu/np.sh) \
 | `np -i` | 安装 NodePass |
 | `np -u` | 卸载 NodePass |
 | `np -v` | 升级 NodePass |
+| `np -t` | 在稳定版和开发版之间切换 |
 | `np -o` | 启动/停止服务   |
 | `np -k` | 更换 API key  |
 | `np -k` | 更换 API 内网穿透的服务器 |
@@ -238,11 +243,11 @@ bash <(curl -sSL https://run.nodepass.eu/dash.sh) update
 
 ### 重置密码
 
-```bash
+```
 bash <(wget -qO- https://run.nodepass.eu/dash.sh) resetpwd
 ```
 或
-```bash
+```
 bash <(curl -sSL https://run.nodepass.eu/dash.sh) resetpwd
 ```
 

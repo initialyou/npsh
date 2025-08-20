@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 # 当前脚本版本号
-SCRIPT_VERSION='0.0.4'
+SCRIPT_VERSION='0.0.5'
+
 
 # 环境变量用于在Debian或Ubuntu操作系统中设置非交互式（noninteractive）安装模式
 export DEBIAN_FRONTEND=noninteractive
@@ -19,8 +20,8 @@ mkdir -p $TEMP_DIR
 
 E[0]="\n Language:\n 1. 简体中文 (Default)\n 2. English"
 C[0]="${E[0]}"
-E[1]="1. Output the standard URI format and QR code for the NodePass API; 2. Automatically detect the machine's IPv4 and IPv6 addresses via an IP API; if incorrect, allow manual input; 3. When users input an IP address, intelligently recognize IPv6 with or without square brackets [ ] for better compatibility; 4. Significantly improve the installation speed of the script."
-C[1]="1. 输出 NodePass API 的标准 URI 格式和二维码; 2. 通过 IP API 自动识别机器的 IPv4 和 IPv6，如不正确，可手动填写; 3. 在用户输入 IP 时，支持智能识别 IPv6，无论是否带有方括号 [ ] 都能自动兼容; 4. 大幅提升脚本安装速度"
+E[1]="1. Support installation of both stable and development versions; 2. Allow switching between versions (np -t); 3. Add IP API: icanhazip.com"
+C[1]="1. 支持稳定版和开发版的安装; 2. 支持版本间切换 (np -t); 3. 增加 IP API: icanhazip.com"
 E[2]="The script must be run as root, you can enter sudo -i and then download and run again. Feedback: [https://github.com/NodePassProject/npsh/issues]"
 C[2]="必须以 root 方式运行脚本，可以输入 sudo -i 后重新下载运行，问题反馈:[https://github.com/NodePassProject/npsh/issues]"
 E[3]="Unsupported architecture: \$(uname -m)"
@@ -41,8 +42,8 @@ E[10]="NodePass installed successfully!"
 C[10]="NodePass 安装成功！"
 E[11]="NodePass has been uninstalled"
 C[11]="NodePass 已卸载"
-E[12]="The external network of the current machine is single-stack:\\\n 1. \${SERVER_IPV4_DEFAULT}\${SERVER_IPV6_DEFAULT}\(default\)\\\n 2. Do not listen on the public network, only listen locally\\\n\\\n Please select or enter the domain or IP directly:"
-C[12]="检测到本机的外网是单栈:\\\n 1. \${SERVER_IPV4_DEFAULT}\${SERVER_IPV6_DEFAULT}，监听全栈 \(默认\)\\\n 2. 不对公网监听，只监听本地\\\n\\\n 请选择或者直接输入域名或 IP:"
+E[12]="The external network of the current machine is single-stack:\\\n 1. \${SERVER_IPV4_DEFAULT}\${SERVER_IPV6_DEFAULT}\(default\)\\\n 2. Do not listen on the public network, only listen locally"
+C[12]="检测到本机的外网是单栈:\\\n 1. \${SERVER_IPV4_DEFAULT}\${SERVER_IPV6_DEFAULT}，监听全栈 \(默认\)\\\n 2. 不对公网监听，只监听本地"
 E[13]="Please enter the port (1024-65535, NAT machine must use an open port, press Enter for random port):"
 C[13]="请输入端口 (1024-65535，NAT 机器必须使用开放的端口，回车使用随机端口):"
 E[14]="Please enter API prefix (lowercase letters, numbers and / only, press Enter for default \"api\"):"
@@ -61,7 +62,7 @@ E[20]="Failed to get latest version"
 C[20]="无法获取最新版本"
 E[21]="Running in container environment, skipping service creation and starting process directly"
 C[21]="在容器环境中运行，跳过服务创建，直接启动进程"
-E[22]="NodePass Script Usage / NodePass 脚本使用方法:\n np - Show menu / 显示菜单\n np -i - Install NodePass / 安装 NodePass\n np -u - Uninstall NodePass / 卸载 NodePass\n np -v - Upgrade NodePass / 升级 NodePass\n np -o - Toggle service status (start/stop) / 切换服务状态 (开启/停止)\n np -k - Change NodePass API key / 更换 NodePass API key\n np -c - Change API intranet penetration server / 更换 API 内网穿透的服务器\n np -s - Show NodePass API info / 显示 NodePass API 信息\n np -h - Show help information / 显示帮助信息"
+E[22]="NodePass Script Usage / NodePass 脚本使用方法:\n np - Show menu / 显示菜单\n np -i - Install NodePass / 安装 NodePass\n np -u - Uninstall NodePass / 卸载 NodePass\n np -v - Upgrade NodePass / 升级 NodePass\n np -t - Switch NodePass version between stable and development / 在稳定版和开发版之间切换 NodePass\n np -o - Toggle service status (start/stop) / 切换服务状态 (开启/停止)\n np -k - Change NodePass API key / 更换 NodePass API key\n np -c - Change API intranet penetration server / 更换 API 内网穿透的服务器\n np -s - Show NodePass API info / 显示 NodePass API 信息\n np -h - Show help information / 显示帮助信息"
 C[22]="${E[22]}"
 E[23]="Please enter the path to your TLS certificate file:"
 C[23]="请输入您的 TLS 证书文件路径:"
@@ -107,10 +108,10 @@ E[43]="NodePass service has been started"
 C[43]="NodePass 服务已开启"
 E[44]="Unable to get local version"
 C[44]="无法获取本地版本"
-E[45]="Local version: \$LOCAL_VERSION"
-C[45]="本地版本: \$LOCAL_VERSION"
-E[46]="Latest version: \$LATEST_VERSION"
-C[46]="最新版本: \$LATEST_VERSION"
+E[45]="NodePass Local Core: Stable \$STABLE_LOCAL_VERSION Dev \$DEV_LOCAL_VERSION"
+C[45]="NodePass 本地核心: 稳定版 \$STABLE_LOCAL_VERSION 开发版 \$DEV_LOCAL_VERSION"
+E[46]="NodePass Latest Core: Stable \$STABLE_LATEST_VERSION Dev \$DEV_LATEST_VERSION"
+C[46]="NodePass 最新核心: 稳定版 \$STABLE_LATEST_VERSION 开发版 \$DEV_LATEST_VERSION"
 E[47]="Current version is already the latest, no need to upgrade"
 C[47]="当前已是最新版本，不需要升级"
 E[48]="Found new version, upgrade? (y/N)"
@@ -149,10 +150,10 @@ E[64]="Failed to change API KEY"
 C[64]="API KEY 更换失败"
 E[65]="Changing NodePass API KEY..."
 C[65]="正在更换 NodePass API KEY..."
-E[66]="NodePass Local Core:"
-C[66]="NodePass 本地核心:"
-E[67]="NodePass Latest Core:"
-C[67]="NodePass 最新核心:"
+E[66]="Current running version: Development Edition"
+C[66]="当前运行版本为: 开发版"
+E[67]="Current running version: Stable Edition"
+C[67]="当前运行版本为: 稳定版"
 E[68]="Please enter the IP of the public machine (leave blank to not penetrate):"
 C[68]="如要把内网的 API 穿透到公网的 NodePass 服务端，请输入公网机器的 IP (留空则不穿透):"
 E[69]="Please enter the port of the public machine:"
@@ -173,10 +174,10 @@ E[76]="Successfully modified the intranet penetration instance"
 C[76]="成功修改内网穿透实例"
 E[77]="Failed to modify the intranet penetration instance"
 C[77]="修改内网穿透实例失败"
-E[78]="The external network of the current machine is dual-stack:\\\n 1. \${SERVER_IPV4_DEFAULT}，listen all stacks \(default\)\\\n 2. \${SERVER_IPV6_DEFAULT}，listen all stacks\\\n 3. Do not listen on the public network, only listen locally\\\n\\\n Please select or enter the domain or IP directly:"
-C[78]="检测到本机的外网是双栈:\\\n 1. \${SERVER_IPV4_DEFAULT}，监听全栈 \(默认\)\\\n 2. \${SERVER_IPV6_DEFAULT}，监听全栈\\\n 3. 不对公网监听，只监听本地\\\n\\\n 请选择或者直接输入域名或 IP:"
-E[79]="URI:"
-C[79]="URI:"
+E[78]="The external network of the current machine is dual-stack:\\\n 1. \${SERVER_IPV4_DEFAULT}，listen all stacks \(default\)\\\n 2. \${SERVER_IPV6_DEFAULT}，listen all stacks\\\n 3. Do not listen on the public network, only listen locally"
+C[78]="检测到本机的外网是双栈:\\\n 1. \${SERVER_IPV4_DEFAULT}，监听全栈 \(默认\)\\\n 2. \${SERVER_IPV6_DEFAULT}，监听全栈\\\n 3. 不对公网监听，只监听本地"
+E[79]="Please select or enter the domain or IP directly:"
+C[79]="请选择或者直接输入域名或 IP:"
 E[80]="The script runs today: \$TODAY. Total: \$TOTAL"
 C[80]="脚本当天运行次数: \$TODAY，累计运行次数: \$TOTAL"
 E[81]="Please enter the port on the server that the local machine will connect to for the tunnel (1024–65535):"
@@ -185,6 +186,30 @@ E[82]="Running the service of intranet penetration on the server side:"
 C[82]="内网穿透的服务端运行:"
 E[83]="Failed to retrieve intranet penetration instance. Instance ID: \${INSTANCE\_ID}"
 C[83]="获取内网穿透实例失败，实例ID: \${INSTANCE_ID}"
+E[84]="Please select the NodePass core to run. Use [np -t] to switch after installation:\\\n 1. Stable \$STABLE_LATEST_VERSION \(yosebyte/nodepass\) - Suitable for production environments \(default\)\\\n 2. Development \$DEV_LATEST_VERSION \(NodePassProject/nodepass-core\) - Contains latest features, may be unstable"
+C[84]="请选择要运行的 NodePass 内核，安装后可使用 [np -t] 切换:\\\n 1. 稳定版 \$STABLE_LATEST_VERSION \(yosebyte/nodepass\) - 适合生产环境 \(默认\)\\\n 2. 开发版 \$DEV_LATEST_VERSION \(NodePassProject/nodepass-core\) - 包含最新功能，可能不稳定"
+E[85]="Getting machine IP address..."
+C[85]="获取机器 IP 地址中..."
+E[86]="Switching NodePass version..."
+C[86]="正在切换 NodePass 版本..."
+E[87]="Switched to stable version successfully"
+C[87]="已成功切换到稳定版"
+E[88]="Switched to development version successfully"
+C[88]="已成功切换到开发版"
+E[89]="NodePass version switch failed"
+C[89]="NodePass 版本切换失败"
+E[90]="URI:"
+C[90]="URI:"
+E[91]="No upgrade available for both stable and development versions"
+C[91]="稳定版和开发版均无可用更新"
+E[92]="Stable version can be upgraded from \$STABLE_LOCAL_VERSION to \$STABLE_LATEST_VERSION"
+C[92]="稳定版可以从 \$STABLE_LOCAL_VERSION 升级到 \$STABLE_LATEST_VERSION"
+E[93]="Development version can be upgraded from \$DEV_LOCAL_VERSION to \$DEV_LATEST_VERSION"
+C[93]="开发版可以从 \$DEV_LOCAL_VERSION 升级到 \$DEV_LATEST_VERSION"
+E[94]="Both stable and development versions can be upgraded"
+C[94]="稳定版和开发版均有可用更新"
+E[95]="Switch core version"
+C[95]="切换内核版本"
 
 # 自定义字体彩色，read 函数
 warning() { echo -e "\033[31m\033[01m$*\033[0m"; }  # 红色
@@ -658,7 +683,7 @@ get_uri() {
 
   URI="np://master?url=$(echo -n "$API_URL" | base64 -w0)&key=$(echo -n "$KEY" | base64 -w0)"
 
-  grep -q 'output' <<< "$1" && grep -q '.' <<< "$URI" && info " $(text 79) $URI" && ${WORK_DIR}/qrencode "$URI"
+  grep -q 'output' <<< "$1" && grep -q '.' <<< "$URI" && info " $(text 90) $URI" && ${WORK_DIR}/qrencode "$URI"
 }
 
 # 获取随机可用端口，目标范围是 1024-8192，共7168个
@@ -673,24 +698,33 @@ get_random_port() {
 
 # 获取本地版本
 get_local_version() {
-  LOCAL_VERSION=$(${WORK_DIR}/nodepass -v 2>/dev/null | sed -n '/Version/s/.*\(v[0-9.]\+\).*/\1/gp')
+  if grep -qw 'all' <<< "$1"; then
+    DEV_LOCAL_VERSION=$(${WORK_DIR}/dev-nodepass 2>/dev/null | sed -n '/Version/s/.*\(v[0-9.]\+[^ ]*\).*/\1/gp')
+    STABLE_LOCAL_VERSION=$(${WORK_DIR}/stable-nodepass 2>/dev/null | sed -n '/Version/s/.*\(v[0-9.]\+[^ ]*\).*/\1/gp')
+  fi
+  local GET_SYMLINK_TARGET=$(ls -l ${WORK_DIR}/nodepass 2>/dev/null | awk '{print $NF}')
+  grep -q 'dev-nodepass' <<< "$GET_SYMLINK_TARGET" && DEV_OR_STABLE=$(text 66) || DEV_OR_STABLE=$(text 67)
+  RUNNING_LOCAL_VERSION=$(${WORK_DIR}/nodepass 2>/dev/null | sed -n '/Version/s/.*\(v[0-9.]\+[^ ]*\).*/\1/gp')
 }
 
 # 获取最新版本
 get_latest_version() {
-  # 获取最新版本号
   if [ "$DOWNLOAD_TOOL" = "curl" ]; then
-    LATEST_VERSION=$(curl -sL "https://${GH_PROXY}api.github.com/repos/yosebyte/nodepass/releases/latest" | awk -F '"' '/tag_name/{print $4}')
+    STABLE_LATEST_VERSION=$(curl -sL "https://${GH_PROXY}api.github.com/repos/yosebyte/nodepass/releases/latest" | awk -F '"' '/tag_name/{print $4}')
+    DEV_LATEST_VERSION=$(curl -sL "https://${GH_PROXY}api.github.com/repos/NodePassProject/nodepass-core/releases" | awk -F '"' '/tag_name/{print $4; exit}')
   else
-    LATEST_VERSION=$(wget -qO- "https://${GH_PROXY}api.github.com/repos/yosebyte/nodepass/releases/latest" | awk -F '"' '/tag_name/{print $4}')
+    STABLE_LATEST_VERSION=$(wget -qO- "https://${GH_PROXY}api.github.com/repos/yosebyte/nodepass/releases/latest" | awk -F '"' '/tag_name/{print $4}')
+    DEV_LATEST_VERSION=$(wget -qO- "https://${GH_PROXY}api.github.com/repos/NodePassProject/nodepass-core/releases" | awk -F '"' '/tag_name/{print $4; exit}')
+
   fi
 
-  if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" = "null" ]; then
+  if [ -z "$STABLE_LATEST_VERSION" ] || [ "$STABLE_LATEST_VERSION" = "null" ] || [ -z "$DEV_LATEST_VERSION" ] || [ "$DEV_LATEST_VERSION" = "null" ]; then
     error " $(text 20) "
   fi
 
   # 去掉版本号前面的v
-  VERSION_NUM=${LATEST_VERSION#v}
+  STABLE_VERSION_NUM=${STABLE_LATEST_VERSION#v}
+  DEV_VERSION_NUM=${DEV_LATEST_VERSION#v}
 }
 
 # 切换 NodePass 服务状态（开启/停止）
@@ -798,78 +832,204 @@ stop_nodepass() {
 # 升级 NodePass
 upgrade_nodepass() {
   # 获取本地版本
-  grep -q '^$' <<< "$LOCAL_VERSION" && get_local_version
-
-  if [ -z "$LOCAL_VERSION" ]; then
-    warning " $(text 44) "
-    return 1
-  fi
+  get_local_version all
 
   # 获取远程最新版本
-  grep -q '^$' <<< "$LATEST_VERSION" && get_latest_version
+  get_latest_version
+
   info "\n $(text 45) "
   info " $(text 46) "
 
-  # 比较版本
-  if [ "$LOCAL_VERSION" = "$LATEST_VERSION" ]; then
-    info " $(text 47) "
+  # 检查是否有可用更新
+  local HAS_UPGRADE=0
+  local HAS_STABLE_UPGRADE=0
+  local HAS_DEV_UPGRADE=0
+  local UPGRADE_INFO=""
+
+  # 检查稳定版是否有更新
+  if [ -n "$STABLE_LOCAL_VERSION" ] && [ -n "$STABLE_LATEST_VERSION" ] && [ "$STABLE_LOCAL_VERSION" != "$STABLE_LATEST_VERSION" ]; then
+    HAS_UPGRADE=1
+    HAS_STABLE_UPGRADE=1
+    UPGRADE_INFO+="\n $(text 92) "
+  fi
+
+  # 检查开发版是否有更新
+  if [ -n "$DEV_LOCAL_VERSION" ] && [ -n "$DEV_LATEST_VERSION" ] && [ "$DEV_LOCAL_VERSION" != "$DEV_LATEST_VERSION" ]; then
+    HAS_UPGRADE=1
+    HAS_DEV_UPGRADE=1
+    UPGRADE_INFO+="\n $(text 93) "
+  fi
+
+  # 如果有更新，提示用户
+  if [ "$HAS_UPGRADE" = 1 ]; then
+    info " $(text 94) "
+    echo -e "$UPGRADE_INFO"
+    reading "\n $(text 48) " UPGRADE_CHOICE
+
+    if [ "${UPGRADE_CHOICE,,}" != "y" ]; then
+      info " $(text 49) "
+      return 0
+    fi
+  else
+    info " $(text 91) "
     return 0
   fi
 
-  # 询问用户是否升级
-  reading " $(text 48) " UPGRADE_CHOICE
+  # 确定是否需要重启服务
+  local NEED_RESTART=0
 
-  if [ "${UPGRADE_CHOICE,,}" != "y" ]; then
-    info " $(text 49) "
-    return 0
+  # 如果当前运行的是稳定版，且稳定版有更新，则需要重启
+  if [ "$DEV_OR_STABLE" = "$(text 66)" ] && [ "$HAS_DEV_UPGRADE" = 1 ]; then
+    NEED_RESTART=1
+  # 如果当前运行的是开发版，且开发版有更新，则需要重启
+  elif [ "$DEV_OR_STABLE" = "$(text 67)" ] && [ "$HAS_STABLE_UPGRADE" = 1 ]; then
+    NEED_RESTART=1
+  # 如果两个版本都有更新，则需要重启
+  elif [ "$HAS_STABLE_UPGRADE" = 1 ] && [ "$HAS_DEV_UPGRADE" = 1 ]; then
+    NEED_RESTART=1
   fi
+
+  # 如果需要重启服务，则停止服务
+  [ "$NEED_RESTART" = 1 ] && stop_nodepass
+
+  # 备份旧版本
+  cp "$WORK_DIR/stable-nodepass" "$WORK_DIR/stable-nodepass.old" 2>/dev/null
+  cp "$WORK_DIR/dev-nodepass" "$WORK_DIR/dev-nodepass.old" 2>/dev/null
+
+  # 下载并解压新版本
+  local DOWNLOAD_SUCCESS=1
+
+  if [ "$DOWNLOAD_TOOL" = "curl" ]; then
+    # 下载稳定版
+    if [ -n "$STABLE_LATEST_VERSION" ] && [ "$STABLE_LOCAL_VERSION" != "$STABLE_LATEST_VERSION" ]; then
+      curl -sL "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${STABLE_LATEST_VERSION}/nodepass_${STABLE_VERSION_NUM}_linux_${ARCH}.tar.gz" | tar -xz -C "$TEMP_DIR"
+      if [ -f "$TEMP_DIR/nodepass" ]; then
+        mv "$TEMP_DIR/nodepass" "$WORK_DIR/stable-nodepass"
+        chmod +x "$WORK_DIR/stable-nodepass"
+      else
+        DOWNLOAD_SUCCESS=0
+      fi
+    fi
+
+    # 下载开发版
+    if [ -n "$DEV_LATEST_VERSION" ] && [ "$DEV_LOCAL_VERSION" != "$DEV_LATEST_VERSION" ]; then
+      curl -sL "https://${GH_PROXY}github.com/NodePassProject/nodepass-core/releases/download/${DEV_LATEST_VERSION}/nodepass-core_${DEV_VERSION_NUM}_linux_${ARCH}.tar.gz" | tar -xz -C "$TEMP_DIR"
+      if [ -f "$TEMP_DIR/nodepass-core" ]; then
+        mv "$TEMP_DIR/nodepass-core" "$WORK_DIR/dev-nodepass"
+        chmod +x "$WORK_DIR/dev-nodepass"
+      else
+        DOWNLOAD_SUCCESS=0
+      fi
+    fi
+  else
+    # 下载稳定版
+    if [ -n "$STABLE_LATEST_VERSION" ] && [ "$STABLE_LOCAL_VERSION" != "$STABLE_LATEST_VERSION" ]; then
+      wget "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${STABLE_LATEST_VERSION}/nodepass_${STABLE_VERSION_NUM}_linux_${ARCH}.tar.gz" -qO- | tar -xz -C "$TEMP_DIR"
+      if [ -f "$TEMP_DIR/nodepass" ]; then
+        mv "$TEMP_DIR/nodepass" "$WORK_DIR/stable-nodepass"
+        chmod +x "$WORK_DIR/stable-nodepass"
+      else
+        DOWNLOAD_SUCCESS=0
+      fi
+    fi
+
+    # 下载开发版
+    if [ -n "$DEV_LATEST_VERSION" ] && [ "$DEV_LOCAL_VERSION" != "$DEV_LATEST_VERSION" ]; then
+      wget "https://${GH_PROXY}github.com/NodePassProject/nodepass-core/releases/download/${DEV_LATEST_VERSION}/nodepass-core_${DEV_VERSION_NUM}_linux_${ARCH}.tar.gz" -qO- | tar -xz -C "$TEMP_DIR"
+      if [ -f "$TEMP_DIR/nodepass-core" ]; then
+        mv "$TEMP_DIR/nodepass-core" "$WORK_DIR/dev-nodepass"
+        chmod +x "$WORK_DIR/dev-nodepass"
+      else
+        DOWNLOAD_SUCCESS=0
+      fi
+    fi
+  fi
+
+  if [ "$DOWNLOAD_SUCCESS" = 0 ]; then
+    warning " $(text 9) "
+    # 恢复旧版本
+    mv "$WORK_DIR/stable-nodepass.old" "$WORK_DIR/stable-nodepass" 2>/dev/null
+    mv "$WORK_DIR/dev-nodepass.old" "$WORK_DIR/dev-nodepass" 2>/dev/null
+    # 如果之前停止了服务，则重新启动
+    [ "$NEED_RESTART" = 1 ] && info " $(text 54) " && start_nodepass
+    return 1
+  fi
+
+  # 如果需要重启服务，则启动服务
+  if [ "$NEED_RESTART" = 1 ]; then
+    if start_nodepass; then
+      info " $(text 52) "
+      # 删除备份
+      rm -f "$WORK_DIR/stable-nodepass.old" "$WORK_DIR/dev-nodepass.old"
+    else
+      warning " $(text 53) "
+      # 回滚
+      mv "$WORK_DIR/stable-nodepass.old" "$WORK_DIR/stable-nodepass" 2>/dev/null
+      mv "$WORK_DIR/dev-nodepass.old" "$WORK_DIR/dev-nodepass" 2>/dev/null
+      if start_nodepass; then
+        info " $(text 54) "
+      else
+        error " $(text 55) "
+      fi
+    fi
+  else
+    info " $(text 52) "
+    # 删除备份
+    rm -f "$WORK_DIR/stable-nodepass.old" "$WORK_DIR/dev-nodepass.old"
+  fi
+}
+
+# 切换 NodePass 版本 (稳定版 <-> 开发版)
+switch_nodepass_version() {
+  # 检查是否已安装
+  if [ ! -f "$WORK_DIR/stable-nodepass" ] && [ ! -f "$WORK_DIR/dev-nodepass" ]; then
+    warning " $(text 59) "
+    return 1
+  fi
+
+  info " $(text 86) "
+
+  # 获取当前使用的版本
+  local CURRENT_SYMLINK=$(ls -l ${WORK_DIR}/nodepass 2>/dev/null)
 
   # 停止服务
   stop_nodepass
 
-  # 备份旧版本
-  cp "$WORK_DIR/nodepass" "$WORK_DIR/nodepass.old"
-
-  # 下载并解压新版本
-  if [ "$DOWNLOAD_TOOL" = "curl" ]; then
-    curl -sL "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${LATEST_VERSION}/nodepass_${VERSION_NUM}_linux_${ARCH}.tar.gz" | tar -xz -C "$TEMP_DIR"
+  # 切换版本
+  if grep -q 'dev-nodepass' <<< "$CURRENT_SYMLINK"; then
+    # 当前是开发版，切换到稳定版
+    ln -sf "$WORK_DIR/stable-nodepass" "$WORK_DIR/nodepass"
+    local SWITCHED_VERSION="stable"
   else
-    wget "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${LATEST_VERSION}/nodepass_${VERSION_NUM}_linux_${ARCH}.tar.gz" -qO- | tar -xz -C "$TEMP_DIR"
+    # 当前是稳定版，切换到开发版
+    ln -sf "$WORK_DIR/dev-nodepass" "$WORK_DIR/nodepass"
+    local SWITCHED_VERSION="development"
   fi
-
-  if [ ! -f "$TEMP_DIR/nodepass" ]; then
-    warning " $(text 9) "
-    # 恢复旧版本
-    mv "$WORK_DIR/nodepass.old" "$WORK_DIR/nodepass"
-    info " $(text 54) "
-    return 1
-  fi
-
-  # 移动到工作目录
-  mv "$TEMP_DIR/nodepass" "$WORK_DIR/"
-  chmod +x "$WORK_DIR/nodepass"
 
   # 启动服务
   if start_nodepass; then
-    info " $(text 52) "
-    # 删除备份
-    rm -f "$WORK_DIR/nodepass.old"
-  else
-    warning " $(text 53) "
-    # 回滚
-    mv "$WORK_DIR/nodepass.old" "$WORK_DIR/nodepass"
-    if start_nodepass; then
-      info " $(text 54) "
+    get_local_version running
+    if [ "$SWITCHED_VERSION" = "stable" ]; then
+      info " $(text 87)\n $DEV_OR_STABLE $RUNNING_LOCAL_VERSION "
     else
-      error " $(text 55) "
+      info " $(text 88)\n $DEV_OR_STABLE $RUNNING_LOCAL_VERSION  "
     fi
+  else
+    warning " $(text 89) "
+    # 尝试回滚
+    if [ "$SWITCHED_VERSION" = "stable" ]; then
+      ln -sf "$WORK_DIR/dev-nodepass" "$WORK_DIR/nodepass"
+    else
+      ln -sf "$WORK_DIR/stable-nodepass" "$WORK_DIR/nodepass"
+    fi
+    start_nodepass
   fi
 }
 
 # 解析命令行参数
 parse_args() {
   # 初始化变量
-  unset ARGS_SERVER_IP ARGS_PORT ARGS_PREFIX ARGS_TLS_MODE ARGS_LANGUAGE ARGS_CERT_FILE ARGS_KEY_FILE
+  unset ARGS_SERVER_IP ARGS_PORT ARGS_PREFIX ARGS_TLS_MODE ARGS_LANGUAGE ARGS_CERT_FILE ARGS_KEY_FILE ARGS_VERSION
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -891,6 +1051,10 @@ parse_args() {
         ;;
       --language)
         ARGS_LANGUAGE="$2"
+        shift 2
+        ;;
+      --version)
+        ARGS_VERSION="$2"
         shift 2
         ;;
       --cert_file)
@@ -948,17 +1112,21 @@ install() {
 
   # 后台下载 NodePass 和 qrencode（60秒超时，重试2次）
   if [ "$DOWNLOAD_TOOL" = "curl" ]; then
-    { curl --connect-timeout 60 --max-time 60 --retry 2 -sL "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${LATEST_VERSION}/nodepass_${VERSION_NUM}_linux_${ARCH}.tar.gz" | tar -xz -C "$TEMP_DIR"; } &
+    { curl --connect-timeout 60 --max-time 60 --retry 2 -sL "https://${GH_PROXY}github.com/NodePassProject/nodepass-core/releases/download/${DEV_LATEST_VERSION}/nodepass-core_${DEV_VERSION_NUM}_linux_${ARCH}.tar.gz" | tar -xz -C "$TEMP_DIR"; } &
+    { curl --connect-timeout 60 --max-time 60 --retry 2 -sL "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${STABLE_LATEST_VERSION}/nodepass_${STABLE_VERSION_NUM}_linux_${ARCH}.tar.gz" | tar -xz -C "$TEMP_DIR"; } &
     { curl --connect-timeout 60 --max-time 60 --retry 2 -o "$TEMP_DIR/qrencode" "https://${GH_PROXY}github.com/fscarmen/client_template/raw/main/qrencode-go/qrencode-go-linux-$ARCH" >/dev/null 2>&1 && chmod +x "$TEMP_DIR/qrencode" >/dev/null 2>&1; } &
   else
-    { wget --timeout=60 --tries=2 "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${LATEST_VERSION}/nodepass_${VERSION_NUM}_linux_${ARCH}.tar.gz" -qO- | tar -xz -C "$TEMP_DIR"; } &
+    { wget --timeout=60 --tries=2 "https://${GH_PROXY}github.com/NodePassProject/nodepass-core/releases/download/${DEV_LATEST_VERSION}/nodepass-core_${DEV_VERSION_NUM}_linux_${ARCH}.tar.gz" -qO- | tar -xz -C "$TEMP_DIR"; } &
+    { wget --timeout=60 --tries=2 "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${STABLE_LATEST_VERSION}/nodepass_${STABLE_VERSION_NUM}_linux_${ARCH}.tar.gz" -qO- | tar -xz -C "$TEMP_DIR"; } &
     { wget --no-check-certificate --timeout=60 --tries=2 --continue -qO "$TEMP_DIR/qrencode" "https://${GH_PROXY}github.com/fscarmen/client_template/raw/main/qrencode-go/qrencode-go-linux-$ARCH" >/dev/null 2>&1 && chmod +x "$TEMP_DIR/qrencode" >/dev/null 2>&1; } &
   fi
+  rm -f $TEMP_DIR/{README.md,README_zh.md,LICENSE}
 
   # 服务器 IP
   if [ -n "$ARGS_SERVER_IP" ]; then
     SERVER_INPUT="$ARGS_SERVER_IP"
   else
+    hint "\n $(text 85) "
     if [ $(type -p ip) ]; then
       local DEFAULT_LOCAL_INTERFACE4=$(ip -4 route show default | awk '/default/ {for (i=0; i<NF; i++) if ($i=="dev") {print $(i+1); exit}}')
       local DEFAULT_LOCAL_INTERFACE6=$(ip -6 route show default | awk '/default/ {for (i=0; i<NF; i++) if ($i=="dev") {print $(i+1); exit}}')
@@ -968,8 +1136,8 @@ install() {
         grep -q '.' <<< "$DEFAULT_LOCAL_INTERFACE6" && local DEFAULT_LOCAL_IP6=$(ip -6 addr show $DEFAULT_LOCAL_INTERFACE6 | sed -n 's#.*inet6 \([^/]\+\)/[0-9]\+.*global.*#\1#gp')
 
         if [ "$DOWNLOAD_TOOL" = "curl" ]; then
-          grep -q '.' <<< "$DEFAULT_LOCAL_IP4" && local BIND_ADDRESS4="--interface $DEFAULT_LOCAL_IP4"
-          grep -q '.' <<< "$DEFAULT_LOCAL_IP6" && local BIND_ADDRESS6="--interface $DEFAULT_LOCAL_IP6"
+          grep -q '.' <<< "$DEFAULT_LOCAL_IP4" && local BIND_ADDRESS4="--interface $DEFAULT_LOCAL_INTERFACE4"
+          grep -q '.' <<< "$DEFAULT_LOCAL_IP6" && local BIND_ADDRESS6="--interface $DEFAULT_LOCAL_INTERFACE6"
         else
           grep -q '.' <<< "$DEFAULT_LOCAL_IP4" && local BIND_ADDRESS4="--bind-address=$DEFAULT_LOCAL_IP4"
           grep -q '.' <<< "$DEFAULT_LOCAL_IP6" && local BIND_ADDRESS6="--bind-address=$DEFAULT_LOCAL_IP6"
@@ -979,36 +1147,42 @@ install() {
 
     # 尝试从 IP api 获取服务器 IP
     if [ "$DOWNLOAD_TOOL" = "curl" ]; then
-      grep -q '.' <<< "$DEFAULT_LOCAL_IP4" && local SERVER_IPV4_DEFAULT=$(curl -s $BIND_ADDRESS4 --retry 2 --max-time 3  http://api-ipv4.ip.sb)
-      grep -q '.' <<< "$DEFAULT_LOCAL_IP6" && local SERVER_IPV6_DEFAULT=$(curl -s $BIND_ADDRESS6 --retry 2 --max-time 3 http://api-ipv6.ip.sb)
+      grep -q '.' <<< "$DEFAULT_LOCAL_IP4" && local SERVER_IPV4_DEFAULT=$(curl -s $BIND_ADDRESS4 --retry 2 --max-time 3 http://api-ipv4.ip.sb || curl -s $BIND_ADDRESS4 --retry 2 --max-time 3 http://ipv4.icanhazip.com)
+      grep -q '.' <<< "$DEFAULT_LOCAL_IP6" && local SERVER_IPV6_DEFAULT=$(curl -s $BIND_ADDRESS6 --retry 2 --max-time 3 http://api-ipv6.ip.sb || curl -s $BIND_ADDRESS6 --retry 2 --max-time 3 http://ipv6.icanhazip.com)
     else
-      grep -q '.' <<< "$DEFAULT_LOCAL_IP4" && local SERVER_IPV4_DEFAULT=$(wget -qO- $BIND_ADDRESS4 --tries=2 --timeout=3 http://api-ipv4.ip.sb)
-      grep -q '.' <<< "$DEFAULT_LOCAL_IP6" && local SERVER_IPV6_DEFAULT=$(wget -qO- $BIND_ADDRESS6 --tries=2 --timeout=3 http://api-ipv6.ip.sb)
+      grep -q '.' <<< "$DEFAULT_LOCAL_IP4" && local SERVER_IPV4_DEFAULT=$(wget -qO- $BIND_ADDRESS4 --tries=2 --timeout=3 http://api-ipv4.ip.sb || wget -qO- $BIND_ADDRESS4 --tries=2 --timeout=3 http://ipv4.icanhazip.com)
+      grep -q '.' <<< "$DEFAULT_LOCAL_IP6" && local SERVER_IPV6_DEFAULT=$(wget -qO- $BIND_ADDRESS6 --tries=2 --timeout=3 http://api-ipv6.ip.sb || wget -qO- $BIND_ADDRESS6 --tries=2 --timeout=3 http://ipv6.icanhazip.com)
     fi
   fi
 
+  # 询问用户选择版本类型
+  if grep -q '.' <<< "$ARGS_VERSION"; then
+    grep -qw 'dev' <<< "$ARGS_VERSION" && VERSION_TYPE_CHOICE="2"
+  fi
+  grep -q '^$' <<< "$VERSION_TYPE_CHOICE" && hint "\n (1/5) $(text 84) \n" && reading " $(text 4) " VERSION_TYPE_CHOICE
+
   # 如果获取到 IPv4 和 IPv6，则提示用户选择
   if grep -q '.' <<< "$SERVER_IPV4_DEFAULT" && grep -q '.' <<< "$SERVER_IPV6_DEFAULT"; then
-    reading "\n (1/4) $(text 78) " SERVER_INPUT
+    hint "\n (2/5) $(text 78) " && reading "\n $(text 79) " SERVER_INPUT
     handle_ip_input "$SERVER_INPUT"
   else
-    reading "\n (1/4) $(text 12) " SERVER_INPUT
+    hint "\n (2/5) $(text 12) " && reading "\n $(text 79) " SERVER_INPUT
     handle_ip_input "$SERVER_INPUT"
   fi
 
   while ! validate_ip_address  "$SERVER_INPUT"; do
     if grep -q '.' <<< "$SERVER_IPV4_DEFAULT" && grep -q '.' <<< "$SERVER_IPV6_DEFAULT"; then
-      reading "\n (1/4) $(text 78) " SERVER_INPUT
+      hint "\n (2/5) $(text 78) " && reading "\n $(text 79) " SERVER_INPUT
       handle_ip_input "$SERVER_INPUT"
     else
-      reading "\n (1/4) $(text 12) " SERVER_INPUT
+      hint "\n (2/5) $(text 12) " && reading "\n $(text 79) " SERVER_INPUT
       handle_ip_input "$SERVER_INPUT"
     fi
   done
 
   # 端口
   while true; do
-    [ -n "$ARGS_PORT" ] && PORT="$ARGS_PORT" || reading "\n (2/4) $(text 13) " PORT
+    [ -n "$ARGS_PORT" ] && PORT="$ARGS_PORT" || reading "\n (3/5) $(text 13) " PORT
     # 如果用户直接回车，使用随机端口
     if [ -z "$PORT" ]; then
       PORT=$(get_random_port)
@@ -1085,7 +1259,7 @@ install() {
 
   # API 前缀
   while true; do
-    [ -n "$ARGS_PREFIX" ] && PREFIX="$ARGS_PREFIX" || reading "\n (3/4) $(text 14) " PREFIX
+    [ -n "$ARGS_PREFIX" ] && PREFIX="$ARGS_PREFIX" || reading "\n (4/5) $(text 14) " PREFIX
     # 如果用户直接回车，使用默认值 api
     [ -z "$PREFIX" ] && PREFIX="api" && break
     # 检查输入是否只包含小写字母、数字和斜杠
@@ -1107,9 +1281,9 @@ install() {
       TLS_MODE=0
     fi
   else
-    info "\n (4/4) $(text 15) "
+    hint "\n (5/5) $(text 15) "
     hint " $(text 16) "
-    reading " $(text 38) " TLS_MODE
+    reading "\n $(text 38) " TLS_MODE
     if [ -z "$TLS_MODE" ]; then
       TLS_MODE=0
     elif [[ ! "$TLS_MODE" =~ ^[0-2]$ ]]; then
@@ -1160,12 +1334,9 @@ install() {
 
   grep -qw '0' <<< "$TLS_MODE" && HTTP_S="http" || HTTP_S="https"
 
-  # 获取最新版本
-  get_latest_version
-
   # 等待 NodePass 和 QRencode 下载完成
   wait
-  if [[ -s "$TEMP_DIR/nodepass" && -s "$TEMP_DIR/qrencode" ]]; then
+  if [[ -s "$TEMP_DIR/nodepass" && -s "$TEMP_DIR/nodepass-core" && -s "$TEMP_DIR/qrencode" ]]; then
     info " $(text 19) "
   elif [[ ! -f "$TEMP_DIR/nodepass" && ! -f "$TEMP_DIR/qrencode" ]]; then
     local APP="NodePass, QRencode" && error "\n $(text 9) "
@@ -1183,9 +1354,14 @@ install() {
   echo -e "LANGUAGE=$L\nSERVER_IP=$SERVER_IP" > $WORK_DIR/data
   [[ "$IN_CONTAINER" = 1 || "$SERVICE_MANAGE" = "none" ]] && echo -e "CMD='$CMD'" >> $WORK_DIR/data
 
-  # 移动NodePass可执行文件并设置权限
-  mv $TEMP_DIR/{nodepass,qrencode} $WORK_DIR/
-  chmod +x $WORK_DIR/{nodepass,qrencode}
+  # 移动 NodePass稳定版和开发版，qrencode 可执行文件并设置权限
+  mv $TEMP_DIR/nodepass $WORK_DIR/stable-nodepass
+  mv $TEMP_DIR/nodepass-core $WORK_DIR/dev-nodepass
+  mv $TEMP_DIR/qrencode $WORK_DIR/
+  chmod +x $WORK_DIR/{*nodepass,qrencode}
+
+  # 根据选择不同的版本类型，设置 NodePass 的可执行文件的软链接
+  [ "$VERSION_TYPE_CHOICE" = "2" ] && ln -sf "$WORK_DIR/dev-nodepass" "$WORK_DIR/nodepass" || ln -sf "$WORK_DIR/stable-nodepass" "$WORK_DIR/nodepass"
 
   # 创建服务文件
   create_service
@@ -1244,7 +1420,7 @@ install() {
     info " $(text 35) "
     info " $(text 39) ${HTTP_S}://${REMOTE_PASSWORD_INPUT}${URL_SERVER_IP}:${URL_SERVER_PORT}/${PREFIX}/v1"
     info " $(text 40) ${KEY}"
-    info " $(text 79) $URI"
+    info " $(text 90) $URI"
     grep -q '.' <<< "$TUNNEL_PORT_INPUT" && info " $(text 82) server://:${TUNNEL_PORT_INPUT}/:${REMOTE_PORT_INPUT}"
     ${WORK_DIR}/qrencode "$URI"
 
@@ -1561,7 +1737,7 @@ menu_setting() {
     get_api_key
     get_api_url
     get_uri
-    get_local_version
+    get_local_version all
     grep -q '.' <<< "$REMOTE" && get_intranet_penetration_server_cmd
 
     # 已安装状态
@@ -1577,16 +1753,18 @@ menu_setting() {
 
       OPTION[2]="2. $(text 62) (np -k)"
       OPTION[3]="3. $(text 30) (np -v)"
-      OPTION[4]="4. $(text 29) (np -u)"
-      grep -q '.' <<< "$REMOTE" && OPTION[5]="5. $(text 70) (np -c)"
+      OPTION[4]="4. $(text 95) (np -t)"
+      OPTION[5]="5. $(text 29) (np -u)"
+      grep -q '.' <<< "$REMOTE" && OPTION[6]="6. $(text 70) (np -c)"
       OPTION[0]="0. $(text 31)"
 
       # 服务未开启时的动作
       ACTION[1]() { on_off $INSTALL_STATUS; exit 0; }
       ACTION[2]() { change_api_key; exit 0; }
       ACTION[3]() { upgrade_nodepass; exit 0; }
-      ACTION[4]() { uninstall; exit 0; }
-      grep -q '.' <<< "$REMOTE" && ACTION[5]() { change_intranet_penetration_server; exit 0; }
+      ACTION[4]() { switch_nodepass_version; exit 0; }
+      ACTION[5]() { uninstall; exit 0; }
+      grep -q '.' <<< "$REMOTE" && ACTION[6]() { change_intranet_penetration_server; exit 0; }
       ACTION[0]() { exit 0; }
   fi
 }
@@ -1605,13 +1783,14 @@ menu() {
 │   >https://github.com/yosebyte/nodepass   │
 ╰───────────────────────────────────────────╯ "
 
-  grep -q '.' <<< "$LOCAL_VERSION" && info " $(text 66) $LOCAL_VERSION "
-  grep -q '.' <<< "$LATEST_VERSION" && info " $(text 67) $LATEST_VERSION "
+  grep -q '.' <<< "$DEV_LOCAL_VERSION" && grep -q '.' <<< "$STABLE_LOCAL_VERSION" && info " $(text 45) "
+  grep -q '.' <<< "$DEV_LATEST_VERSION" && grep -q '.' <<< "$STABLE_LATEST_VERSION" && info " $(text 46) "
+  grep -q '.' <<< "$RUNNING_LOCAL_VERSION" && info " $DEV_OR_STABLE $RUNNING_LOCAL_VERSION"
   grep -qEw '0|1' <<< "$INSTALL_STATUS" && info " $(text 60) $NODEPASS_STATUS "
   grep -q '.' <<< "$API_URL" && info " $(text 39) $API_URL"
   grep -q '.' <<< "$KEY" && info " $(text 40) $KEY"
   grep -q '.' <<< "$SERVER_CMD" && info " $(text 82) $SERVER_CMD"
-  grep -q '.' <<< "$URI" && [ -x "${WORK_DIR}/qrencode" ] && info " $(text 79) $URI"
+  grep -q '.' <<< "$URI" && [ -x "${WORK_DIR}/qrencode" ] && info " $(text 90) $URI"
 
   info " Version: $SCRIPT_VERSION $(text 1) "
   echo "------------------------"
@@ -1686,6 +1865,10 @@ main() {
     -v)
       # 升级操作
       [ "$INSTALL_STATUS" = 2 ] && warning " ${E[59]}\n ${C[59]} " || upgrade_nodepass
+      ;;
+    -t)
+      # 版本切换操作
+      [ "$INSTALL_STATUS" = 2 ] && warning " ${E[59]}\n ${C[59]} " || switch_nodepass_version
       ;;
     -o)
       # 切换服务状态
