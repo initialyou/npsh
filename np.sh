@@ -8,7 +8,7 @@ SCRIPT_VERSION='0.0.5'
 export DEBIAN_FRONTEND=noninteractive
 
 # Github 反代加速代理
-GH_PROXY='gh-proxy.com/'
+GH_PROXY='https://hub.glowp.xyz/'
 
 # 工作目录和临时目录
 TEMP_DIR='/tmp/nodepass'
@@ -533,9 +533,9 @@ check_port() {
 check_cdn() {
   if [ -n "$GH_PROXY" ]; then
     if [ "$DOWNLOAD_TOOL" = "curl" ]; then
-      curl -ksIL --connect-timeout 3 --max-time 3 https://${GH_PROXY}raw.githubusercontent.com/yosebyte/nodepass/refs/heads/main/README.md &>/dev/null || unset GH_PROXY
+      curl -ksIL --connect-timeout 3 --max-time 3 ${GH_PROXY}https://raw.githubusercontent.com/yosebyte/nodepass/refs/heads/main/README.md &>/dev/null || unset GH_PROXY
     else
-      wget --server-response --quiet --output-document=/dev/null --no-check-certificate --tries=2 --timeout=3 https://${GH_PROXY}raw.githubusercontent.com/yosebyte/nodepass/refs/heads/main/README.md &>/dev/null || unset GH_PROXY
+      wget --server-response --quiet --output-document=/dev/null --no-check-certificate --tries=2 --timeout=3 ${GH_PROXY}https://raw.githubusercontent.com/yosebyte/nodepass/refs/heads/main/README.md &>/dev/null || unset GH_PROXY
     fi
   fi
 }
@@ -710,12 +710,31 @@ get_local_version() {
 # 获取最新版本
 get_latest_version() {
   if [ "$DOWNLOAD_TOOL" = "curl" ]; then
-    STABLE_LATEST_VERSION=$(curl -sL "https://${GH_PROXY}api.github.com/repos/yosebyte/nodepass/releases/latest" | awk -F '"' '/tag_name/{print $4}')
-    DEV_LATEST_VERSION=$(curl -sL "https://${GH_PROXY}api.github.com/repos/NodePassProject/nodepass-core/releases" | awk -F '"' '/tag_name/{print $4; exit}')
+    # 稳定版使用 latest 标签
+    STABLE_LATEST_VERSION=$(curl -sL "${GH_PROXY}https://api.github.com/repos/yosebyte/nodepass/releases/latest" | awk -F '"' '/tag_name/{print $4}')
+    # 开发版使用时间判断
+    local API_MESSAGE_DEV=$(curl -sL "${GH_PROXY}https://api.github.com/repos/NodePassProject/nodepass-core/releases" | grep -E 'published_at|tag_name')
   else
-    STABLE_LATEST_VERSION=$(wget -qO- "https://${GH_PROXY}api.github.com/repos/yosebyte/nodepass/releases/latest" | awk -F '"' '/tag_name/{print $4}')
-    DEV_LATEST_VERSION=$(wget -qO- "https://${GH_PROXY}api.github.com/repos/NodePassProject/nodepass-core/releases" | awk -F '"' '/tag_name/{print $4; exit}')
+    # 稳定版使用 latest 标签
+    STABLE_LATEST_VERSION=$(wget -qO- "${GH_PROXY}https://api.github.com/repos/yosebyte/nodepass/releases/latest" | awk -F '"' '/tag_name/{print $4}')
+    # 开发版使用时间判断
+    local API_MESSAGE_DEV=$(wget -qO- "${GH_PROXY}https://api.github.com/repos/NodePassProject/nodepass-core/releases" | grep -E 'published_at|tag_name')
+  fi
 
+  # 处理开发版本
+  local PUBLISHED_AT_DEV=($(awk -F '"' '/published_at/{print $4}' <<< "$API_MESSAGE_DEV"))
+  local TAG_NAME_DEV=($(awk -F '"' '/tag_name/{print $4}' <<< "$API_MESSAGE_DEV"))
+
+  # 找到最新的开发版本
+  if [ ${#PUBLISHED_AT_DEV[@]} -gt 0 ]; then
+    local i_dev=$(echo "${PUBLISHED_AT_DEV[@]}" | tr ' ' '\n' | awk '
+        BEGIN {max="1970-01-01T00:00:00Z"; idx=0}
+        {if ($1 > max) {max=$1; idx=NR-1}}
+        END {print idx}
+    ')
+    DEV_LATEST_VERSION="${TAG_NAME_DEV[$i_dev]}"
+  else
+    DEV_LATEST_VERSION=""
   fi
 
   if [ -z "$STABLE_LATEST_VERSION" ] || [ "$STABLE_LATEST_VERSION" = "null" ] || [ -z "$DEV_LATEST_VERSION" ] || [ "$DEV_LATEST_VERSION" = "null" ]; then
@@ -902,7 +921,7 @@ upgrade_nodepass() {
   if [ "$DOWNLOAD_TOOL" = "curl" ]; then
     # 下载稳定版
     if [ -n "$STABLE_LATEST_VERSION" ] && [ "$STABLE_LOCAL_VERSION" != "$STABLE_LATEST_VERSION" ]; then
-      curl -sL "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${STABLE_LATEST_VERSION}/nodepass_${STABLE_VERSION_NUM}_linux_${ARCH}.tar.gz" | tar -xz -C "$TEMP_DIR"
+      curl -sL "${GH_PROXY}https://github.com/yosebyte/nodepass/releases/download/${STABLE_LATEST_VERSION}/nodepass_${STABLE_VERSION_NUM}_linux_${ARCH}.tar.gz" | tar -xz -C "$TEMP_DIR"
       if [ -f "$TEMP_DIR/nodepass" ]; then
         mv "$TEMP_DIR/nodepass" "$WORK_DIR/stable-nodepass"
         chmod +x "$WORK_DIR/stable-nodepass"
@@ -913,7 +932,7 @@ upgrade_nodepass() {
 
     # 下载开发版
     if [ -n "$DEV_LATEST_VERSION" ] && [ "$DEV_LOCAL_VERSION" != "$DEV_LATEST_VERSION" ]; then
-      curl -sL "https://${GH_PROXY}github.com/NodePassProject/nodepass-core/releases/download/${DEV_LATEST_VERSION}/nodepass-core_${DEV_VERSION_NUM}_linux_${ARCH}.tar.gz" | tar -xz -C "$TEMP_DIR"
+      curl -sL "${GH_PROXY}https://github.com/NodePassProject/nodepass-core/releases/download/${DEV_LATEST_VERSION}/nodepass-core_${DEV_VERSION_NUM}_linux_${ARCH}.tar.gz" | tar -xz -C "$TEMP_DIR"
       if [ -f "$TEMP_DIR/nodepass-core" ]; then
         mv "$TEMP_DIR/nodepass-core" "$WORK_DIR/dev-nodepass"
         chmod +x "$WORK_DIR/dev-nodepass"
@@ -924,7 +943,7 @@ upgrade_nodepass() {
   else
     # 下载稳定版
     if [ -n "$STABLE_LATEST_VERSION" ] && [ "$STABLE_LOCAL_VERSION" != "$STABLE_LATEST_VERSION" ]; then
-      wget "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${STABLE_LATEST_VERSION}/nodepass_${STABLE_VERSION_NUM}_linux_${ARCH}.tar.gz" -qO- | tar -xz -C "$TEMP_DIR"
+      wget "${GH_PROXY}https://github.com/yosebyte/nodepass/releases/download/${STABLE_LATEST_VERSION}/nodepass_${STABLE_VERSION_NUM}_linux_${ARCH}.tar.gz" -qO- | tar -xz -C "$TEMP_DIR"
       if [ -f "$TEMP_DIR/nodepass" ]; then
         mv "$TEMP_DIR/nodepass" "$WORK_DIR/stable-nodepass"
         chmod +x "$WORK_DIR/stable-nodepass"
@@ -935,7 +954,7 @@ upgrade_nodepass() {
 
     # 下载开发版
     if [ -n "$DEV_LATEST_VERSION" ] && [ "$DEV_LOCAL_VERSION" != "$DEV_LATEST_VERSION" ]; then
-      wget "https://${GH_PROXY}github.com/NodePassProject/nodepass-core/releases/download/${DEV_LATEST_VERSION}/nodepass-core_${DEV_VERSION_NUM}_linux_${ARCH}.tar.gz" -qO- | tar -xz -C "$TEMP_DIR"
+      wget "${GH_PROXY}https://github.com/NodePassProject/nodepass-core/releases/download/${DEV_LATEST_VERSION}/nodepass-core_${DEV_VERSION_NUM}_linux_${ARCH}.tar.gz" -qO- | tar -xz -C "$TEMP_DIR"
       if [ -f "$TEMP_DIR/nodepass-core" ]; then
         mv "$TEMP_DIR/nodepass-core" "$WORK_DIR/dev-nodepass"
         chmod +x "$WORK_DIR/dev-nodepass"
@@ -1112,13 +1131,13 @@ install() {
 
   # 后台下载 NodePass 和 qrencode（60秒超时，重试2次）
   if [ "$DOWNLOAD_TOOL" = "curl" ]; then
-    { curl --connect-timeout 60 --max-time 60 --retry 2 -sL "https://${GH_PROXY}github.com/NodePassProject/nodepass-core/releases/download/${DEV_LATEST_VERSION}/nodepass-core_${DEV_VERSION_NUM}_linux_${ARCH}.tar.gz" | tar -xz -C "$TEMP_DIR"; } &
-    { curl --connect-timeout 60 --max-time 60 --retry 2 -sL "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${STABLE_LATEST_VERSION}/nodepass_${STABLE_VERSION_NUM}_linux_${ARCH}.tar.gz" | tar -xz -C "$TEMP_DIR"; } &
-    { curl --connect-timeout 60 --max-time 60 --retry 2 -o "$TEMP_DIR/qrencode" "https://${GH_PROXY}github.com/fscarmen/client_template/raw/main/qrencode-go/qrencode-go-linux-$ARCH" >/dev/null 2>&1 && chmod +x "$TEMP_DIR/qrencode" >/dev/null 2>&1; } &
+    { curl --connect-timeout 60 --max-time 60 --retry 2 -sL "${GH_PROXY}https://github.com/NodePassProject/nodepass-core/releases/download/${DEV_LATEST_VERSION}/nodepass-core_${DEV_VERSION_NUM}_linux_${ARCH}.tar.gz" | tar -xz -C "$TEMP_DIR"; } &
+    { curl --connect-timeout 60 --max-time 60 --retry 2 -sL "${GH_PROXY}https://github.com/yosebyte/nodepass/releases/download/${STABLE_LATEST_VERSION}/nodepass_${STABLE_VERSION_NUM}_linux_${ARCH}.tar.gz" | tar -xz -C "$TEMP_DIR"; } &
+    { curl --connect-timeout 60 --max-time 60 --retry 2 -o "$TEMP_DIR/qrencode" "${GH_PROXY}https://github.com/fscarmen/client_template/raw/main/qrencode-go/qrencode-go-linux-$ARCH" >/dev/null 2>&1 && chmod +x "$TEMP_DIR/qrencode" >/dev/null 2>&1; } &
   else
-    { wget --timeout=60 --tries=2 "https://${GH_PROXY}github.com/NodePassProject/nodepass-core/releases/download/${DEV_LATEST_VERSION}/nodepass-core_${DEV_VERSION_NUM}_linux_${ARCH}.tar.gz" -qO- | tar -xz -C "$TEMP_DIR"; } &
-    { wget --timeout=60 --tries=2 "https://${GH_PROXY}github.com/yosebyte/nodepass/releases/download/${STABLE_LATEST_VERSION}/nodepass_${STABLE_VERSION_NUM}_linux_${ARCH}.tar.gz" -qO- | tar -xz -C "$TEMP_DIR"; } &
-    { wget --no-check-certificate --timeout=60 --tries=2 --continue -qO "$TEMP_DIR/qrencode" "https://${GH_PROXY}github.com/fscarmen/client_template/raw/main/qrencode-go/qrencode-go-linux-$ARCH" >/dev/null 2>&1 && chmod +x "$TEMP_DIR/qrencode" >/dev/null 2>&1; } &
+    { wget --timeout=60 --tries=2 "${GH_PROXY}https://github.com/NodePassProject/nodepass-core/releases/download/${DEV_LATEST_VERSION}/nodepass-core_${DEV_VERSION_NUM}_linux_${ARCH}.tar.gz" -qO- | tar -xz -C "$TEMP_DIR"; } &
+    { wget --timeout=60 --tries=2 "${GH_PROXY}https://github.com/yosebyte/nodepass/releases/download/${STABLE_LATEST_VERSION}/nodepass_${STABLE_VERSION_NUM}_linux_${ARCH}.tar.gz" -qO- | tar -xz -C "$TEMP_DIR"; } &
+    { wget --no-check-certificate --timeout=60 --tries=2 --continue -qO "$TEMP_DIR/qrencode" "${GH_PROXY}https://github.com/fscarmen/client_template/raw/main/qrencode-go/qrencode-go-linux-$ARCH" >/dev/null 2>&1 && chmod +x "$TEMP_DIR/qrencode" >/dev/null 2>&1; } &
   fi
   rm -f $TEMP_DIR/{README.md,README_zh.md,LICENSE}
 
