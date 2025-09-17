@@ -699,12 +699,12 @@ get_random_port() {
 # 获取本地版本
 get_local_version() {
   if grep -qw 'all' <<< "$1"; then
-    DEV_LOCAL_VERSION=$(${WORK_DIR}/dev-nodepass 2>/dev/null | sed -n '/Version/s/.*\(v[0-9.]\+[^ ]*\).*/\1/gp')
-    STABLE_LOCAL_VERSION=$(${WORK_DIR}/stable-nodepass 2>/dev/null | sed -n '/Version/s/.*\(v[0-9.]\+[^ ]*\).*/\1/gp')
+    DEV_LOCAL_VERSION=$(${WORK_DIR}/dev-nodepass 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^[:space:]]*')
+    STABLE_LOCAL_VERSION=$(${WORK_DIR}/stable-nodepass 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^[:space:]]*')
   fi
   local GET_SYMLINK_TARGET=$(ls -l ${WORK_DIR}/nodepass 2>/dev/null | awk '{print $NF}')
   grep -q 'dev-nodepass' <<< "$GET_SYMLINK_TARGET" && DEV_OR_STABLE=$(text 66) || DEV_OR_STABLE=$(text 67)
-  RUNNING_LOCAL_VERSION=$(${WORK_DIR}/nodepass 2>/dev/null | sed -n '/Version/s/.*\(v[0-9.]\+[^ ]*\).*/\1/gp')
+  RUNNING_LOCAL_VERSION=$(${WORK_DIR}/nodepass 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^[:space:]]*')
 }
 
 # 获取最新版本
