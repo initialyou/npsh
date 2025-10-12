@@ -62,7 +62,7 @@ E[20]="Failed to get latest version"
 C[20]="无法获取最新版本"
 E[21]="Running in container environment, skipping service creation and starting process directly"
 C[21]="在容器环境中运行，跳过服务创建，直接启动进程"
-E[22]="NodePass Script Usage / NodePass 脚本使用方法:\n np - Show menu / 显示菜单\n np -i - Install NodePass / 安装 NodePass\n np -u - Uninstall NodePass / 卸载 NodePass\n np -v - Upgrade NodePass / 升级 NodePass\n np -t - Switch NodePass version between stable and development / 在稳定版和开发版之间切换 NodePass\n np -o - Toggle service status (start/stop) / 切换服务状态 (开启/停止)\n np -k - Change NodePass API key / 更换 NodePass API key\n np -c - Change API intranet penetration server / 更换 API 内网穿透的服务器\n np -s - Show NodePass API info / 显示 NodePass API 信息\n np -h - Show help information / 显示帮助信息"
+E[22]="NodePass Script Usage / NodePass 脚本使用方法:\n np - Show menu / 显示菜单\n np -i - Install NodePass / 安装 NodePass\n np -u - Uninstall NodePass / 卸载 NodePass\n np -v - Upgrade NodePass / 升级 NodePass\n np -t - Switch NodePass version between stable and development / 在稳定版和开发版之间切换 NodePass\n np -o - Toggle service status (start/stop) / 切换服务状态 (开启/停止)\n np -k - Change NodePass API key / 更换 NodePass API key\n np -c - Change intranet penetration server / 更换内网穿透\n np -s - Show NodePass API info / 显示 NodePass API 信息\n np -h - Show help information / 显示帮助信息"
 C[22]="${E[22]}"
 E[23]="Please enter the path to your TLS certificate file:"
 C[23]="请输入您的 TLS 证书文件路径:"
@@ -158,8 +158,8 @@ E[68]="Please enter the IP of the public machine (leave blank to not penetrate):
 C[68]="如要把内网的 API 穿透到公网的 NodePass 服务端，请输入公网机器的 IP (留空则不穿透):"
 E[69]="Please enter the port of the public machine:"
 C[69]="请输入穿透到公网的 NodePass 服务端的端口:"
-E[70]="Change API intranet penetration server"
-C[70]="更换 API 内网穿透的服务器"
+E[70]="Change intranet penetration server"
+C[70]="更换内网穿透"
 E[71]="Please enter the password (default is no password):"
 C[71]="输入密码（默认无密码）:"
 E[72]="The service of intranet penetration to remote has been created successfully"
@@ -614,10 +614,9 @@ get_api_url() {
 
     # 如果找到了CMD行，通过正则提取各个参数
     if [ -n "$CMD_LINE" ]; then
-      [[ "$CMD_LINE" =~ master://.*:([0-9]+)/([^?]+)\?log=([^&]+)\&tls=([0-2]) ]]
+      [[ "$CMD_LINE" =~ master://.*:([0-9]+)/([^?]+)\?(log=[^&]+&)?tls=([0-2]) ]]
       PORT="${BASH_REMATCH[1]}"
       PREFIX="${BASH_REMATCH[2]}"
-      LOG_LEVEL="${BASH_REMATCH[3]}"
       TLS_MODE="${BASH_REMATCH[4]}"
       grep -qw '0' <<< "$TLS_MODE" && local HTTP_S="http" || local HTTP_S="https"
     fi
@@ -635,7 +634,7 @@ get_api_url() {
     fi
 
     # 构建API URL
-    API_URL="${HTTP_S}://${URL_SERVER_PASSWORD}${URL_SERVER_IP}:${URL_SERVER_PORT}/${PREFIX:+${PREFIX%/}/}v1"
+    API_URL="${HTTP_S}://${URL_SERVER_IP}:${URL_SERVER_PORT}/${PREFIX:+${PREFIX%/}/}v1"
     grep -q 'output' <<< "$1" && info " $(text 39) $API_URL "
   else
     warning " $(text 59) "
@@ -656,20 +655,23 @@ get_api_key() {
 # 查询内网穿透的服务端命令行
 get_intranet_penetration_server_cmd() {
   if [ "$DOWNLOAD_TOOL" = "curl" ]; then
-    local CLIENT_CMD=$(curl -sX 'GET' \
-      "http://127.0.0.1:${PORT}/api/v1/instances/${INSTANCE_ID}" \
+    local CLIENT_CMD=$(curl -ksX 'GET' \
+      "$HTTP_S://127.0.0.1:${PORT}/${PREFIX}/v1/instances/${INSTANCE_ID}" \
       -H 'accept: application/json' \
       -H "X-API-Key: ${KEY}")
   else
     local CLIENT_CMD=$(wget --no-check-certificate -qO- --method=GET \
       --header="accept: application/json" \
       --header="X-API-Key: ${KEY}" \
-      "http://127.0.0.1:${PORT}/api/v1/instances/${INSTANCE_ID}")
+      "$HTTP_S://127.0.0.1:${PORT}/${PREFIX}/v1/instances/${INSTANCE_ID}")
   fi
 
-  if grep -q '"url"' <<< "$CLIENT_CMD"; then
-    local TUNNEL_PORT_INPUT=$(sed "s#.*client.*:\([0-9]\+\)/.*#\1#" <<< "$CLIENT_CMD")
-    SERVER_CMD="server://:${TUNNEL_PORT_INPUT}/:${URL_SERVER_PORT}"
+  # 使用正则表达式匹配client URL，支持带密码和不带密码的情况
+  if [[ "$CLIENT_CMD" =~ \"url\":[[:space:]]*\"client://([^\@]*)@?([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+|\[[0-9a-fA-F:]+\]):([0-9]+)/[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+\" ]]; then
+    grep -q '.' <<< "${BASH_REMATCH[1]}" && local REMOTE_PASSWORD_INPUT="${BASH_REMATCH[1]}@"
+    local REMOTE_SERVER_INPUT="${BASH_REMATCH[2]}"
+    local TUNNEL_PORT_INPUT="${BASH_REMATCH[3]}"
+    SERVER_CMD="server://${REMOTE_PASSWORD_INPUT}${REMOTE_SERVER_INPUT}:${TUNNEL_PORT_INPUT}/:${URL_SERVER_PORT}"
     grep -q 'output' <<< "$1" && info " $(text 82) $SERVER_CMD"
   else
     warning " $(text 83) "
@@ -1366,12 +1368,13 @@ install() {
   fi
 
   # 构建命令行
-  CMD="master://${CMD_SERVER_IP}:${PORT}/${PREFIX}?log=info&tls=${TLS_MODE}${CRT_PATH:-}"
+  CMD="master://${CMD_SERVER_IP}:${PORT}/${PREFIX}?tls=${TLS_MODE}${CRT_PATH:-}"
 
   # 移动到工作目录，保存语言选择和服务器IP信息到单个文件
   mkdir -p $WORK_DIR
   echo -e "LANGUAGE=$L\nSERVER_IP=$SERVER_IP" > $WORK_DIR/data
   [[ "$IN_CONTAINER" = 1 || "$SERVICE_MANAGE" = "none" ]] && echo -e "CMD='$CMD'" >> $WORK_DIR/data
+  grep -q '.' <<< "$REMOTE_SERVER_INPUT" && grep -q '.' <<< "$REMOTE_PORT_INPUT" && local REMOTE="${REMOTE_PASSWORD_INPUT}${URL_SERVER_IP}:${URL_SERVER_PORT}" && echo -e "REMOTE=$REMOTE" >> $WORK_DIR/data
 
   # 移动 NodePass稳定版和开发版，qrencode 可执行文件并设置权限
   mv $TEMP_DIR/nodepass $WORK_DIR/stable-nodepass
@@ -1408,7 +1411,7 @@ install() {
           -H "X-API-Key: ${KEY}" \
           -H 'Content-Type: application/json' \
           -d "{
-            \"url\": \"client://${REMOTE_PASSWORD_INPUT}${URL_SERVER_IP}:${TUNNEL_PORT_INPUT}/127.0.0.1:${PORT}?log=error\"
+            \"url\": \"client://${REMOTE_PASSWORD_INPUT}${URL_SERVER_IP}:${TUNNEL_PORT_INPUT}/127.0.0.1:${PORT}\"
           }" 2>&1 | sed 's/{"id":"\([0-9a-f]\{8\}\)".*/\1/')
 
         grep -q "^[0-9a-f]\{8\}$" <<< "${CREATE_NEW_INSTANCE_ID}" && curl -X 'PATCH' "http://127.0.0.1:${PORT}/${PREFIX}/v1/instances/${CREATE_NEW_INSTANCE_ID}" \
@@ -1419,7 +1422,7 @@ install() {
           --header="accept: application/json" \
           --header="X-API-Key: ${KEY}" \
           --header="Content-Type: application/json" \
-          --body-data="{\"url\": \"client://${REMOTE_PASSWORD_INPUT}${URL_SERVER_IP}:${TUNNEL_PORT_INPUT}/127.0.0.1:${PORT}?log=error\"}" \
+          --body-data="{\"url\": \"client://${REMOTE_PASSWORD_INPUT}${URL_SERVER_IP}:${TUNNEL_PORT_INPUT}/127.0.0.1:${PORT}\"}" \
           "${HTTP_S}://127.0.0.1:${PORT}/${PREFIX}/v1/instances" 2>&1 | sed 's/{"id":"\([0-9a-f]\{8\}\)".*/\1/')
 
         grep -q "^[0-9a-f]\{8\}$" <<< "${CREATE_NEW_INSTANCE_ID}" && wget --no-check-certificate --method=PATCH \
@@ -1428,8 +1431,6 @@ install() {
         "http://127.0.0.1:${PORT}/${PREFIX}/v1/instances/${CREATE_NEW_INSTANCE_ID}" >/dev/null 2>&1
       fi
 
-      grep -q '.' <<< "$REMOTE_SERVER_INPUT" && grep -q '.' <<< "$REMOTE_PORT_INPUT" && echo -e "REMOTE=${REMOTE_PASSWORD_INPUT}${URL_SERVER_IP}:${URL_SERVER_PORT}" >> $WORK_DIR/data
-
       [ "${#CREATE_NEW_INSTANCE_ID}" = 8 ] && echo -e "INSTANCE_ID=${CREATE_NEW_INSTANCE_ID}" >> $WORK_DIR/data && info "\n $(text 72) \n" || warning "\n $(text 73) \n"
     fi
 
@@ -1437,10 +1438,10 @@ install() {
     echo "------------------------"
     info " $(text 60) $(text 34) "
     info " $(text 35) "
-    info " $(text 39) ${HTTP_S}://${REMOTE_PASSWORD_INPUT}${URL_SERVER_IP}:${URL_SERVER_PORT}/${PREFIX}/v1"
+    info " $(text 39) ${HTTP_S}://${URL_SERVER_IP}:${URL_SERVER_PORT}/${PREFIX}/v1"
     info " $(text 40) ${KEY}"
     info " $(text 90) $URI"
-    grep -q '.' <<< "$TUNNEL_PORT_INPUT" && info " $(text 82) server://:${TUNNEL_PORT_INPUT}/:${REMOTE_PORT_INPUT}"
+    grep -q '.' <<< "$TUNNEL_PORT_INPUT" && info " $(text 82) server://${REMOTE_PASSWORD_INPUT}:${TUNNEL_PORT_INPUT}/:${REMOTE_PORT_INPUT}"
     ${WORK_DIR}/qrencode "$URI"
 
     echo "------------------------"
@@ -1648,7 +1649,7 @@ change_intranet_penetration_server() {
       -H "X-API-Key: ${KEY}" \
       -H 'Content-Type: application/json' \
       -d "{
-        \"url\": \"client://${REMOTE_PASSWORD_INPUT}${REMOTE_SERVER_INPUT}:${TUNNEL_PORT_INPUT}/127.0.0.1:${PORT}?log=error\"
+        \"url\": \"client://${REMOTE_PASSWORD_INPUT}${REMOTE_SERVER_INPUT}:${TUNNEL_PORT_INPUT}/127.0.0.1:${PORT}\"
       }" &>/dev/null
   else
     # 修改内网穿透实例内容
@@ -1656,16 +1657,17 @@ change_intranet_penetration_server() {
       --header="accept: application/json" \
       --header="X-API-Key: ${KEY}" \
       --header="Content-Type: application/json" \
-      --body-data="{\"url\": \"client://${REMOTE_PASSWORD_INPUT}${REMOTE_SERVER_INPUT}:${TUNNEL_PORT_INPUT}/127.0.0.1:${PORT}?log=error\"}" \
+      --body-data="{\"url\": \"client://${REMOTE_PASSWORD_INPUT}${REMOTE_SERVER_INPUT}:${TUNNEL_PORT_INPUT}/127.0.0.1:${PORT}\"}" \
       "${HTTP_S}://127.0.0.1:${PORT}/${PREFIX}/v1/instances/${INSTANCE_ID}" &>/dev/null
   fi
 
   # 更新 data 文件
   if [ "$?" = 0 ]; then
     sed -i "s/^REMOTE=.*/REMOTE=${REMOTE_PASSWORD_INPUT}${REMOTE_SERVER_INPUT}:${REMOTE_PORT_INPUT}/" $WORK_DIR/data
-    local SERVER_CMD="server://:${TUNNEL_PORT_INPUT}/:${REMOTE_PORT_INPUT}"
+    local SERVER_CMD="server://${REMOTE_PASSWORD_INPUT}:${TUNNEL_PORT_INPUT}/:${REMOTE_PORT_INPUT}"
     info "\n $(text 76) \n"
-    info " $(text 82) $SERVER_CMD"
+    info " $(text 82) $SERVER_CMD\n"
+    unset API_URL && get_uri output
   else
     error "\n $(text 77) \n"
   fi
@@ -1857,7 +1859,7 @@ main() {
   check_cdn
 
   # 统计脚本当天及累计使用次数
-  statistics_of_run-times update np.sh
+  statistics_of_run-times update np.sh 2>/dev/null
 
   # 检查安装状态
   check_install
