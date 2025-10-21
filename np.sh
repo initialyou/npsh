@@ -210,6 +210,8 @@ E[94]="Both stable and development versions can be upgraded"
 C[94]="稳定版和开发版均有可用更新"
 E[95]="Switch core version"
 C[95]="切换内核版本"
+E[96]="Waiting 5 seconds before starting the service..."
+C[96]="正在等待5秒后启动服务..."
 
 # 自定义字体彩色，read 函数
 warning() { echo -e "\033[31m\033[01m$*\033[0m"; }  # 红色
@@ -978,6 +980,8 @@ upgrade_nodepass() {
 
   # 如果需要重启服务，则启动服务
   if [ "$NEED_RESTART" = 1 ]; then
+    # 添加5秒延迟
+    info " $(text 96) " && sleep 5
     if start_nodepass; then
       info " $(text 52) "
       # 删除备份
@@ -1026,6 +1030,9 @@ switch_nodepass_version() {
     ln -sf "$WORK_DIR/dev-nodepass" "$WORK_DIR/nodepass"
     local SWITCHED_VERSION="development"
   fi
+
+  # 添加5秒延迟
+  info " $(text 96) " && sleep 5
 
   # 启动服务
   if start_nodepass; then
